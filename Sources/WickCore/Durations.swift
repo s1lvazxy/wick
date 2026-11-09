@@ -1,6 +1,6 @@
 import Foundation
 
-public let wickVersion = "0.2.0"
+public let wickVersion = "0.3.0"
 
 public enum Durations {
     /// Accepts `90`, `90m`, `2h`, `1h30m` and `45s`. A bare number means minutes.

@@ -47,17 +47,27 @@ func start(_ session: Session) {
     }
 }
 
+/// Only a session has a guard watching the heat, so only then is stopping a promise.
+func heatLine(_ heat: Heat, isGuarded: Bool) -> String {
+    var parts = [heat.word.lowercased()]
+    if let celsius = heat.batteryCelsius { parts.append("battery \(Int(celsius.rounded()))°C") }
+    if let isLidClosed = heat.isLidClosed { parts.append(isLidClosed ? "lid closed" : "lid open") }
+    let line = "Heat: \(parts.joined(separator: ", "))."
+    return isGuarded && heat.isLidClosed == true && heat.isHot ? line + " Wick stops if this lasts a minute." : line
+}
+
 func printStatus() {
     let store = SessionStore()
     Wick.reconcile(guardExecutable: executable, store: store)
     let awake = Power.sleepDisabled() ?? false
+    let heat = Heat.current()
 
     if CommandLine.arguments.contains("--json") {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        struct Status: Encodable { var sleepDisabled: Bool; var session: Session? }
-        let data = (try? encoder.encode(Status(sleepDisabled: awake, session: store.load()))) ?? Data()
+        struct Status: Encodable { var sleepDisabled: Bool; var session: Session?; var heat: Heat }
+        let data = (try? encoder.encode(Status(sleepDisabled: awake, session: store.load(), heat: heat))) ?? Data()
         print(String(decoding: data, as: UTF8.self))
         return
     }
@@ -68,6 +78,7 @@ func printStatus() {
     }
     guard let session = store.load() else {
         print("Awake with the lid closed. Turned on outside Wick.")
+        print(heatLine(heat, isGuarded: false))
         return
     }
     var line = "Awake with the lid closed"
@@ -77,6 +88,7 @@ func printStatus() {
     if session.untilAgentsFinish { line += ", or until agents finish" }
     if !session.heldPIDs.isEmpty { line += ", while a command runs" }
     print(line + ".")
+    print(heatLine(heat, isGuarded: true))
 }
 
 func value(after flag: String, in arguments: inout [String]) -> String? {

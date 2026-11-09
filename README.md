@@ -1,14 +1,39 @@
 <p align="center">
-  <img src="docs/hero.png" alt="The Wick panel, idle and awake" width="860">
+  <img src="docs/hero.png" alt="Wick. Close the lid. The agents stay late." width="860">
 </p>
 
-# Wick
+<p align="center">
+  <b>Keeps a Mac or Linux laptop awake with the lid closed, and always puts sleep back.</b>
+</p>
 
-Close the lid. Keep working.
+<p align="center">
+  <a href="https://s1lvazxy.github.io/wick/">Website</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#use">Use</a> ·
+  <a href="#what-stops-a-session">What stops it</a> ·
+  <a href="brand/">Brand</a>
+</p>
 
-**[s1lvazxy.github.io/wick](https://s1lvazxy.github.io/wick/)**
+<p align="center">
+  <a href="https://github.com/s1lvazxy/wick/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/s1lvazxy/wick?label=release&labelColor=141211&color=F5F2EE"></a>
+  <a href="https://github.com/s1lvazxy/wick/actions/workflows/ci.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/s1lvazxy/wick/ci.yml?branch=main&label=tests&labelColor=141211&color=F5F2EE"></a>
+  <img alt="macOS 14 or later, and Linux" src="https://img.shields.io/badge/macOS%2014%2B%20%C2%B7%20Linux-F5F2EE?labelColor=141211">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-F5F2EE?labelColor=141211"></a>
+</p>
 
-Wick keeps your laptop awake with the lid closed, so coding agents, builds and downloads finish while you walk away, and it makes sure sleep comes back afterwards. A menu bar app and CLI on macOS, a top bar extension, tray app and CLI on Linux.
+<br>
+
+Your laptop thinks a closed lid means bedtime. Your coding agent was mid-sentence.
+
+Wick keeps the laptop awake with the lid shut, so coding agents, builds and downloads finish while you walk away. Then it puts sleep back. It also won't cook your laptop: if it runs hot with the lid closed for a minute, the session ends, and there's no switch for that.
+
+<table>
+  <tr>
+    <td width="33%" valign="top"><b>One button</b><br>Pick how long, press play, close the lid. A menu bar app on macOS, a top bar extension or tray app on Linux.</td>
+    <td width="33%" valign="top"><b>It knows who's on shift</b><br>Claude Code, Codex, Aider, OpenCode, Gemini CLI and six more. It can stop when the last one exits.</td>
+    <td width="33%" valign="top"><b>It always puts sleep back</b><br>A guard outlives the app. Time, low battery, heat, quitting and logging out all end the session.</td>
+  </tr>
+</table>
 
 ## Install
 
@@ -25,11 +50,11 @@ Needs macOS 14 or later. Runs on Apple silicon and Intel.
 ### Linux
 
 ```sh
-pipx install "git+https://github.com/s1lvazxy/wick@v0.2.0#subdirectory=linux"
+pipx install "git+https://github.com/s1lvazxy/wick#subdirectory=linux"
 wick setup
 ```
 
-`wick setup` checks that the lock is allowed, adds the app launcher and, on GNOME, adds the top bar extension. On GNOME, log out and back in once so it can load, unless setup says it's already enabled. There's also an RPM on the [releases page](https://github.com/s1lvazxy/wick/releases/latest).
+`wick setup` checks that the lock is allowed, adds the app launcher and, on GNOME, adds the top bar extension. On GNOME, log out and back in once so it can load, unless setup says it's already enabled.
 
 Needs systemd-logind and Python 3.9 or later, so it works on Fedora, Ubuntu, Debian, Arch and most others. It doesn't work on distributions without systemd, like Alpine or Void. `wick doctor` tells you where your machine stands.
 
@@ -41,6 +66,10 @@ On desktops other than GNOME, `wick app` runs a panel and a tray icon. That need
 
 Click the mark in your menu bar or top bar, pick a duration, press play, close the lid. On a Mac, the first time, macOS asks for your password once (see [Permission](#permission)). Linux needs no password.
 
+<p align="center">
+  <img src="docs/panel.png" alt="The Wick panel: idle, awake, and stopped to let the Mac cool down" width="860">
+</p>
+
 From the terminal:
 
 ```sh
@@ -50,7 +79,7 @@ wick on --agents        # until your coding agents finish
 wick on 8h --floor 30   # stop at 30% battery instead of 20%
 wick run claude         # stay awake while one command runs
 wick off                # back to normal
-wick status             # what's going on
+wick status             # what's going on, heat included
 wick agents             # which agents Wick can see
 ```
 
@@ -60,7 +89,8 @@ wick agents             # which agents Wick can see
 | --- | --- |
 | Time runs out | Enforced by a separate process, so it still happens if the app crashes or the terminal closes. A command under `wick run` holds it open until it exits |
 | Battery floor | 20% by default, only while on battery. Change it or turn it off |
-| Critical heat | macOS reports a critical thermal state, or on Linux a sensor stays within 3°C of its critical trip point. Always on |
+| Critical heat | Lid open or closed. macOS reports a critical thermal state, or on Linux a sensor stays within 3°C of its critical trip point for 30 seconds (1°C for hwmon sensors such as the CPU's own). Always on |
+| Heat with the lid closed | From 0.3.0. Sooner, because a closed laptop can't shed heat through its keyboard. For 60 seconds straight: macOS reports a serious thermal state, or the battery is at 45°C or more. On Linux: the battery is at 45°C or more, a thermal zone is within 8°C of its critical trip point, or an hwmon sensor is within 5°C of its limit. One cooler reading starts the minute again. Only when the lid is known to be closed. Always on |
 | Agents finish | Optional. 90 seconds after the last one exits. An agent left open at its prompt still counts as running |
 | The command exits | For `wick run`, including if `wick run` itself is killed |
 | Quit, log out, shut down | Sleep comes back |
@@ -68,7 +98,8 @@ wick agents             # which agents Wick can see
 
 A guard force-killed with `SIGKILL` can't clean up after itself, so a small launchd job (`~/Library/LaunchAgents/io.github.s1lvazxy.wick.guard.plist`) runs the guard at login and every five minutes. It exits at once unless a session needs enforcing. macOS lists it under Login Items as `wick`.
 
-**Keep it out of bags while it's awake.** A closed Mac sheds heat slowly, and no software fixes that.
+> [!WARNING]
+> Keep it out of bags while it's awake. A closed laptop sheds heat slowly. Wick can end a session, but it can't air-condition a backpack.
 
 ## Permission
 
@@ -92,7 +123,7 @@ logind only hands out this lock to an active local session, so `wick on` fails o
 
 ## How it's built
 
-The macOS app is Swift 6, SwiftUI and AppKit, with no dependencies, at 5 MB. The Linux side is Python with no dependencies beyond systemd, in [linux/](linux). Both use the same session model and rules.
+The macOS app is Swift 6, SwiftUI and AppKit, with no dependencies, at 5 MB. The Linux side is Python with no dependencies beyond systemd, in [linux/](linux). Both use the same session model and rules. Neither makes a network request.
 
 ```
 Sources/WickCore        the setting, sessions, the guard, agent detection, the sudoers rule
@@ -101,8 +132,8 @@ Sources/WickUI          the panel, the ruler, the menu bar item
 Sources/WickApp         the app's entry point
 Sources/wick-snapshots  renders every panel state to PNG
 linux/                  the Linux CLI, guard, tray app, GNOME extension and their tests
-brand/                  logo, icon, and the scripts that generate them
-site/                   the landing page (Vite)
+brand/                  the identity: logo, icon, imagery, the brand book, and the scripts that make them
+site/                   the landing page (Vite, three.js, GSAP)
 packaging/              the Homebrew cask and the npm installer
 ```
 
@@ -123,7 +154,7 @@ preview/run.sh                       # a real GNOME desktop with Wick in it, in 
 
 ### Releasing
 
-Run `linux/tests/logind/run.sh fedora:42 fedora:latest ubuntu:22.04 ubuntu:24.04 debian:12 debian:13` and `linux/tests/gnome/run.sh` first, because CI can't: they need a privileged container with systemd as PID 1. Then push a tag like `v0.2.0`. [`release.yml`](.github/workflows/release.yml) builds, publishes to GitHub Releases, updates the tap and publishes to npm. Its header lists the secrets, all optional. With a Developer ID it also signs and notarises, after which the cask's quarantine step can go and Wick can apply to the official Homebrew cask list.
+Run `linux/tests/logind/run.sh fedora:42 fedora:latest ubuntu:22.04 ubuntu:24.04 debian:12 debian:13` and `linux/tests/gnome/run.sh` first, because CI can't: they need a privileged container with systemd as PID 1. Then push a tag like `v0.3.0`. [`release.yml`](.github/workflows/release.yml) builds, publishes to GitHub Releases, updates the tap and publishes to npm. Its header lists the secrets, all optional. With a Developer ID it also signs and notarises, after which the cask's quarantine step can go and Wick can apply to the official Homebrew cask list.
 
 ## Why not caffeinate?
 
@@ -135,4 +166,4 @@ The Linux port was started by [gust330](https://github.com/gust330) in [wick-lin
 
 ## License
 
-[MIT](LICENSE). The Wick name and logo are in [brand/](brand).
+[MIT](LICENSE). The Wick name and logo are in [brand/](brand), with the [brand book](brand/wick-brand-book.pdf).

@@ -16,7 +16,7 @@ public enum EndReason: String, Codable, Sendable {
         case .agentsFinished: "Agents finished. Sleep is back to normal."
         case .commandFinished: "Command finished. Sleep is back to normal."
         case .lowBattery: "Stopped to protect the battery."
-        case .overheating: "Stopped because the Mac was overheating."
+        case .overheating: "Stopped to let the Mac cool down."
         case .stoppedByUser: "Stopped."
         case .stoppedExternally: "Sleep was turned back on outside Wick."
         }

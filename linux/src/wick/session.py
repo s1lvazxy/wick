@@ -30,7 +30,7 @@ class EndReason(str, Enum):
             EndReason.AGENTS_FINISHED: "Agents finished. Sleep is back to normal.",
             EndReason.COMMAND_FINISHED: "Command finished. Sleep is back to normal.",
             EndReason.LOW_BATTERY: "Stopped to protect the battery.",
-            EndReason.OVERHEATING: "Stopped because the laptop was overheating.",
+            EndReason.OVERHEATING: "Stopped to let the laptop cool down.",
             EndReason.STOPPED_BY_USER: "Stopped.",
             EndReason.STOPPED_EXTERNALLY: "The lid lock ended outside Wick.",
         }[self]

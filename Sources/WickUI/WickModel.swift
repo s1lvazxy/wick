@@ -25,6 +25,7 @@ public final class WickModel {
     public var batteryFloor: Int?
     public var agents: [String] = []
     public var battery: Battery?
+    public var heat = Heat(level: .nominal, isLidClosed: nil, batteryCelsius: nil)
     public var needsAccess = false
     public var isBusy = false
     public var problem: String?
@@ -106,6 +107,7 @@ public final class WickModel {
         }
         if let agents = reading.agents { self.agents = agents }
         battery = reading.battery
+        heat = reading.heat
         if reading.lastEnd != lastEnd {
             lastEnd = reading.lastEnd
             // Nobody is watching when these happen. Anything else, the person just did themselves.
@@ -124,6 +126,7 @@ public final class WickModel {
         var lastEnd: SessionEnd?
         var agents: [String]?
         var battery: Battery?
+        var heat: Heat
     }
 
     /// Scanning every process is only worth it while someone can see the result.
@@ -133,7 +136,8 @@ public final class WickModel {
             session: store.load(),
             lastEnd: store.lastEnd(),
             agents: includingAgents ? Agents.running() : nil,
-            battery: Battery.current()
+            battery: Battery.current(),
+            heat: Heat.current()
         )
     }
 
@@ -361,6 +365,7 @@ extension WickModel {
         agents: [String] = [],
         agentsOn: Bool = false,
         battery: Battery? = Battery(percent: 84, isDischarging: false),
+        heat: Heat = Heat(level: .nominal, isLidClosed: false, batteryCelsius: 31),
         needsAccess: Bool = false,
         lastEnd: SessionEnd? = nil,
         problem: String? = nil
@@ -373,6 +378,7 @@ extension WickModel {
         model.stopWhenAgentsFinish = agentsOn
         model.batteryFloor = 20
         model.battery = battery
+        model.heat = heat
         model.needsAccess = needsAccess
         model.lastEnd = lastEnd
         model.problem = problem

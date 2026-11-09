@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import re
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 _LONGEST = 10 * 365 * 24 * 3600.0
 _PART = re.compile(r"(\d+)(h|m|s)")

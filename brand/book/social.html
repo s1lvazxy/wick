@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Wick social images</title>
+    <link rel="stylesheet" href="book.css" />
+    <style>
+      html {
+        background: #2a2826;
+      }
+
+      body {
+        display: grid;
+        gap: 40px;
+        justify-items: start;
+        padding: 40px;
+      }
+
+      /* Open this file with #og, #github, #avatar, #readme or #panels and that board is the whole page. */
+      body:has(:target) {
+        display: block;
+        padding: 0;
+      }
+
+      body:has(:target) .board:not(:target) {
+        display: none;
+      }
+
+      html:has(:target) {
+        background: transparent;
+      }
+
+      .board {
+        position: relative;
+        overflow: hidden;
+        color: var(--paper);
+        background: var(--night);
+      }
+
+      .board .coal {
+        height: 78%;
+      }
+
+      .board > :not(.coal) {
+        position: absolute;
+      }
+
+      .board h1 {
+        font-size: 1em;
+        line-height: 0.92;
+        letter-spacing: -0.055em;
+      }
+
+      .board p {
+        font-family: var(--mono);
+        letter-spacing: 0.02em;
+        color: rgb(245 242 238 / 72%);
+      }
+
+      /* Link preview */
+      #og {
+        width: 1200px;
+        height: 630px;
+      }
+
+      #og .lockup {
+        top: 56px;
+        left: 64px;
+        width: 150px;
+      }
+
+      #og h1 {
+        top: 176px;
+        left: 60px;
+        font-size: 104px;
+      }
+
+      #og p {
+        bottom: 60px;
+        left: 64px;
+        font-size: 21px;
+      }
+
+      #og .laptop {
+        right: -70px;
+        bottom: -20px;
+        width: 700px;
+      }
+
+      /* GitHub's social preview keeps its edges clear, because the corners get rounded and cropped. */
+      #github {
+        width: 1280px;
+        height: 640px;
+      }
+
+      #github .lockup {
+        top: 72px;
+        left: 88px;
+        width: 160px;
+      }
+
+      #github h1 {
+        top: 190px;
+        left: 84px;
+        font-size: 106px;
+      }
+
+      #github p {
+        bottom: 76px;
+        left: 88px;
+        font-size: 22px;
+      }
+
+      #github .laptop {
+        right: -40px;
+        bottom: -10px;
+        width: 720px;
+      }
+
+      #avatar {
+        width: 1024px;
+        height: 1024px;
+      }
+
+      #avatar .coal {
+        height: 62%;
+      }
+
+      #avatar .mark {
+        top: 172px;
+        left: 172px;
+        width: 680px;
+      }
+
+      /* The top of the README, which GitHub shows on white or on black. It brings its own night.
+         Identity only: the word, its ember, and the light the ember throws. */
+      #readme {
+        width: 1720px;
+        height: 760px;
+        border-radius: 40px;
+      }
+
+      #readme .coal {
+        height: 86%;
+      }
+
+      /* The ember lights its own corner of the dark. Sits behind the word, centred on the i's tittle. */
+      #readme .halo {
+        top: 22px;
+        left: 302px;
+        width: 620px;
+        height: 620px;
+        background: radial-gradient(closest-side, rgb(255 138 61 / 46%), rgb(217 66 26 / 16%) 46%, transparent 100%);
+      }
+
+      #readme .word {
+        top: 232px;
+        left: 100px;
+        width: 1130px;
+      }
+
+      #readme h1 {
+        right: 104px;
+        bottom: 96px;
+        font-size: 58px;
+        line-height: 1;
+        letter-spacing: -0.045em;
+        text-align: right;
+      }
+
+      #readme .corner {
+        top: 84px;
+        font-size: 21px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgb(245 242 238 / 62%);
+      }
+
+      #readme .corner.left {
+        left: 104px;
+      }
+
+      #readme .corner.right {
+        right: 104px;
+      }
+
+      #panels {
+        display: flex;
+        gap: 44px;
+        align-items: start;
+        padding: 72px 80px;
+        border-radius: 36px;
+      }
+
+      #panels > :not(.coal) {
+        position: relative;
+      }
+
+      #panels img:not(.coal) {
+        width: 408px;
+        border-radius: 29px;
+        box-shadow:
+          0 30px 60px rgb(0 0 0 / 50%),
+          inset 0 0 0 1px rgb(255 255 255 / 10%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="board" id="og">
+      <img class="coal" src="assets/coal.webp" alt="" />
+      <img class="laptop" src="../imagery/laptop-rest.webp" alt="" />
+      <img class="lockup" src="../logo/lockup-light.svg" alt="" />
+      <h1>Close the lid.<br />The agents<br />stay late.</h1>
+      <p>Keeps a Mac or Linux laptop awake with the lid closed.</p>
+    </div>
+
+    <div class="board" id="github">
+      <img class="coal" src="assets/coal.webp" alt="" />
+      <img class="laptop" src="../imagery/laptop-rest.webp" alt="" />
+      <img class="lockup" src="../logo/lockup-light.svg" alt="" />
+      <h1>Close the lid.<br />The agents<br />stay late.</h1>
+      <p>Keeps a Mac or Linux laptop awake with the lid closed.</p>
+    </div>
+
+    <div class="board" id="avatar">
+      <img class="coal" src="assets/coal.webp" alt="" />
+      <img class="mark" src="../logo/mark-light.svg" alt="" />
+    </div>
+
+    <div class="board" id="readme">
+      <img class="coal" src="assets/coal.webp" alt="" />
+      <div class="halo"></div>
+      <img class="word" src="../logo/wordmark-ember-light.svg" alt="" />
+      <p class="corner left">Free and open source</p>
+      <p class="corner right">macOS and Linux</p>
+      <h1>Close the lid.<br />The agents stay late.</h1>
+    </div>
+
+    <div class="board" id="panels">
+      <img class="coal" src="assets/coal.webp" alt="" />
+      <img src="assets/panel-idle.webp" alt="" />
+      <img src="assets/panel-awake.webp" alt="" />
+      <img src="assets/panel-ended-heat.webp" alt="" />
+    </div>
+  </body>
+</html>

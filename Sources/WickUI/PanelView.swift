@@ -401,6 +401,18 @@ private struct ConditionsCard: View {
         }
     }
 
+    private var heatSummary: String {
+        guard let celsius = model.heat.batteryCelsius else { return model.heat.word }
+        let temperature = Measurement(value: celsius, unit: UnitTemperature.celsius).formatted(
+            .measurement(width: .abbreviated, usage: .general, numberFormatStyle: .number.precision(.fractionLength(0)))
+        )
+        return "\(model.heat.word), battery \(temperature)"
+    }
+
+    private var heatIcon: String {
+        model.heat.isHot ? "thermometer.high" : model.heat.isWarm ? "thermometer.medium" : "thermometer.low"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ConditionRow(symbol: "terminal", title: "Stop when agents finish", detail: agentSummary) {
@@ -422,6 +434,20 @@ private struct ConditionsCard: View {
                     BatteryFloorMenu(model: model)
                 }
             }
+
+            Rectangle()
+                .fill(Theme.hairline)
+                .frame(height: 1)
+                .padding(.leading, 44)
+
+            // The one condition with nothing to switch: it's there to say so.
+            ConditionRow(symbol: heatIcon, title: "Stops if it gets hot", detail: heatSummary) {
+                Text("Always")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(minHeight: 28)
+            }
+            .accessibilityElement(children: .combine)
         }
         // No guard runs for a setting Wick did not turn on, so these conditions would be promises it can't keep.
         .disabled(model.phase == .awakeElsewhere)

@@ -62,6 +62,8 @@ def print_status(executable: str, as_json: bool = False) -> None:
                     "session": session.to_dict() if session else None,
                     "battery": {"percent": current.percent, "isDischarging": current.is_discharging} if current else None,
                     "agents": agents.running(),
+                    # The panels poll this, so the lid is only asked about once there's heat for it to matter to.
+                    "heat": thermal.Heat.current(always_ask_lid=False).to_dict(),
                     "lastEnd": store.last_end(),
                 },
                 indent=2,
@@ -86,6 +88,7 @@ def print_status(executable: str, as_json: bool = False) -> None:
     if session.heldPIDs:
         line += ", while a command runs"
     print(f"{line}.")
+    print(thermal.Heat.current().sentence(is_guarded=True))
 
 
 def start_or_fail(session: Session, executable: str, store: SessionStore | None = None) -> None:
@@ -245,13 +248,19 @@ def handle_doctor() -> int:
     else:
         print("Battery       none found, so the battery floor doesn't apply")
 
-    zones = thermal.zones()
-    if zones:
-        hottest = max(zones, key=lambda zone: zone.temperature)
+    heat = thermal.Heat.current()
+    hottest = heat.hottest
+    if hottest:
         critical = f", critical at {hottest.critical:.0f}°C" if hottest.critical else ""
         print(f"Hottest zone  {hottest.temperature:.0f}°C ({hottest.name}{critical})")
-    else:
+    if heat.battery_temperature is not None:
+        print(f"Battery heat  {heat.battery_temperature:.0f}°C, and {thermal.HOT_BATTERY_C:.0f}°C counts as hot")
+    if hottest is None and heat.battery_temperature is None:
         print("Thermal       no sensors found, so heat protection can't work here")
+    if heat.lid_closed is not None:
+        print(f"Lid           {'closed' if heat.lid_closed else 'open'}")
+    else:
+        print("Lid           no switch found, so heat is only acted on when it's critical")
 
     running = agents.running()
     print(f"Agents        {', '.join(running) if running else 'none running'}")

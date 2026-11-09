@@ -198,6 +198,25 @@ expect "records overheating" overheating "$(last_reason)"
 export WICK_SIMULATE_THERMAL=""
 sleep 0.2; pkill -f "$wick guard"; sleep 0.2
 
+export WICK_SYSFS_ROOT="$work/sys" WICK_SIMULATE_LID=closed
+echo Charging > "$bat/status"; echo 80 > "$bat/capacity"; echo 310 > "$bat/temp"
+"$wick" on 30m >/dev/null
+expect "status says how hot it is" "Heat: cool, battery 31°C, lid closed." "$("$wick" status | tail -1)"
+sleep 6
+expect "a cool laptop with the lid closed is what Wick is for" 1 "$(power)"
+echo 460 > "$bat/temp"
+started=$(date +%s)
+case "$("$wick" status | tail -1)" in *"Wick stops if this lasts a minute."*) got=yes ;; *) got=no ;; esac
+expect "status warns once the battery gets hot under a closed lid" yes "$got"
+sleep 45
+expect "which gets most of a minute" 1 "$(power)"
+wait_for 0 30; expect "and is stopped once it has lasted one" 0 "$(power)"
+lasted=$(($(date +%s) - started))
+expect "not before the minute was up" yes "$([ "$lasted" -ge 55 ] && echo yes || echo "no, after ${lasted}s")"
+expect "records overheating" overheating "$(last_reason)"
+unset WICK_SYSFS_ROOT WICK_SIMULATE_LID
+sleep 0.2; pkill -f "$wick guard"; sleep 0.2
+
 echo "=== 13. errors ==="
 "$wick" on soon >/dev/null 2>&1
 expect "bad duration fails" 1 "$?"
@@ -278,6 +297,8 @@ expect "only real session fields are saved" "batteryFloor,endsAt,endsWithHeldPro
 json=$("$wick" status --json)
 got=$(printf '%s' "$json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["sleepDisabled"], d["session"]["batteryFloor"], d["session"]["untilAgentsFinish"], d["battery"]["percent"], type(d["agents"]).__name__)')
 expect "status --json has what the GNOME extension needs" "True 30 True 80 list" "$got"
+got=$(printf '%s' "$json" | python3 -c 'import json,sys; h=json.load(sys.stdin)["heat"]; print(h["word"] in ("Cool", "Warm", "Hot"), sorted(h))')
+expect "including the heat" "True ['batteryCelsius', 'lidClosed', 'word']" "$got"
 "$wick" off >/dev/null; sleep 0.1; pkill -f "$wick guard"; sleep 0.2
 got=$("$wick" status --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["sleepDisabled"], d["session"], d["lastEnd"]["reason"])')
 expect "and when idle" "False None stoppedByUser" "$got"

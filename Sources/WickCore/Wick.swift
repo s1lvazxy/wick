@@ -130,8 +130,10 @@ public enum Guard {
 
         withExtendedLifetime(release) {
             var isEnforcing = false
+            // Lives here, between ticks. A guard restarted by launchd starts counting the minute again.
+            var heat = HeatWatch()
             while true {
-                let session = enforce(store: store, isEnforcing: &isEnforcing)
+                let session = enforce(store: store, isEnforcing: &isEnforcing, heat: &heat)
                 let untilDeadline = session?.endsAt.map { $0.timeIntervalSinceNow } ?? tick
                 Thread.sleep(forTimeInterval: min(tick, max(untilDeadline, 0.5)))
             }
@@ -140,7 +142,7 @@ public enum Guard {
     }
 
     /// One tick, all of it under the state lock. Exits the process once there's nothing left to enforce.
-    private static func enforce(store: SessionStore, isEnforcing: inout Bool) -> Session? {
+    private static func enforce(store: SessionStore, isEnforcing: inout Bool, heat: inout HeatWatch) -> Session? {
         store.withLock {
             guard var session = store.load() else {
                 // `stop` removes the file only after sleep is back on. If it's gone or unreadable with sleep
@@ -172,7 +174,7 @@ public enum Guard {
             let conditions = Session.Conditions(
                 now: .now,
                 battery: Battery.current(),
-                isOverheating: ProcessInfo.processInfo.thermalState == .critical,
+                isOverheating: heat.isOverheating(.current(), uptime: ProcessInfo.processInfo.systemUptime),
                 anyHeldProcessAlive: anyHeldProcessAlive(session)
             )
             if let reason = session.endReason(in: conditions) {

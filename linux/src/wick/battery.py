@@ -7,6 +7,10 @@ import os
 from pathlib import Path
 
 
+# A sensor that isn't really reading reports things like 0 and 6553.5.
+_PLAUSIBLE_C = (1.0, 100.0)
+
+
 def sysfs_root() -> Path:
     return Path(os.environ.get("WICK_SYSFS_ROOT", "/sys"))
 
@@ -26,6 +30,35 @@ def _read_number(path: Path) -> int | None:
         return None
 
 
+def laptop_batteries() -> list[Path]:
+    """The supplies that are this laptop's own batteries.
+
+    Laptops can have several (many ThinkPads have two), and names vary (BAT0, CMB0, macsmc-battery), so this goes
+    by each supply's type. A wireless mouse is also a Battery, but its scope is Device.
+    """
+    try:
+        supplies = sorted((sysfs_root() / "class" / "power_supply").iterdir())
+    except OSError:
+        return []
+    return [
+        supply
+        for supply in supplies
+        if _read(supply / "type") == "Battery" and (_read(supply / "scope") or "").lower() != "device"
+    ]
+
+
+def temperature() -> float | None:
+    """The warmest battery in °C, or None. Plenty of laptops have no sensor there, or don't share it."""
+    if os.environ.get("WICK_SIMULATE_POWER_FILE") and "WICK_SYSFS_ROOT" not in os.environ:
+        return None
+    readings = []
+    for supply in laptop_batteries():
+        tenths = _read_number(supply / "temp")
+        if tenths is not None and _PLAUSIBLE_C[0] <= tenths / 10.0 <= _PLAUSIBLE_C[1]:
+            readings.append(tenths / 10.0)
+    return max(readings, default=None)
+
+
 @dataclass(frozen=True)
 class Battery:
     percent: int
@@ -33,11 +66,7 @@ class Battery:
 
     @classmethod
     def current(cls) -> Battery | None:
-        """The laptop's overall charge, or None on a machine without a battery.
-
-        Laptops can have several batteries (many ThinkPads have two), and names vary (BAT0, CMB0, macsmc-battery),
-        so this goes by each supply's type. A wireless mouse is also a Battery, but its scope is Device.
-        """
+        """The laptop's overall charge, or None on a machine without a battery."""
         simulated = os.environ.get("WICK_SIMULATE_BATTERY")
         if simulated:
             parts = simulated.split(",")
@@ -48,18 +77,11 @@ class Battery:
         elif os.environ.get("WICK_SIMULATE_POWER_FILE") and "WICK_SYSFS_ROOT" not in os.environ:
             return cls(percent=80, is_discharging=False)
 
-        try:
-            supplies = sorted((sysfs_root() / "class" / "power_supply").iterdir())
-        except OSError:
-            return None
-
         now_total = 0
         full_total = 0
         percents: list[int] = []
         discharging = False
-        for supply in supplies:
-            if _read(supply / "type") != "Battery" or (_read(supply / "scope") or "").lower() == "device":
-                continue
+        for supply in laptop_batteries():
             capacity = _read_number(supply / "capacity")
             now = _read_number(supply / "energy_now")
             full = _read_number(supply / "energy_full")

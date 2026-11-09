@@ -210,7 +210,7 @@ class FakeSysfs(unittest.TestCase):
         patcher = mock.patch.dict(os.environ, environment)
         patcher.start()
         self.addCleanup(patcher.stop)
-        for name in ("WICK_SIMULATE_BATTERY", "WICK_SIMULATE_POWER_FILE", "WICK_SIMULATE_THERMAL"):
+        for name in ("WICK_SIMULATE_BATTERY", "WICK_SIMULATE_POWER_FILE", "WICK_SIMULATE_THERMAL", "WICK_SIMULATE_LID"):
             os.environ.pop(name, None)
 
     def files(self, base, **values):
@@ -275,16 +275,24 @@ class Batteries(FakeSysfs):
         self.assertEqual(Battery.current().percent, 100)
 
 
-class Heat(FakeSysfs):
+class WatchedHeat(FakeSysfs):
+    lid = None
+
     def monitor(self):
         self.now = 0.0
-        return thermal.Monitor(clock=lambda: self.now)
+        return thermal.Monitor(clock=lambda: self.now, lid=lambda: self.lid)
 
     def stays_hot_for(self, seconds):
         monitor = self.monitor()
         monitor.is_overheating()
         self.now = seconds
         return monitor.is_overheating()
+
+
+class Heat(WatchedHeat):
+    """The first rung: critical, whatever the lid is doing. These all run with it open."""
+
+    lid = False
 
     def test_no_sensors_is_not_overheating(self):
         self.assertFalse(thermal.Monitor().is_overheating())
@@ -351,6 +359,241 @@ class Heat(FakeSysfs):
     def test_simulation_overrides(self):
         with mock.patch.dict(os.environ, {"WICK_SIMULATE_THERMAL": "critical"}):
             self.assertTrue(thermal.Monitor().is_overheating())
+
+
+class HeatWithTheLidClosed(WatchedHeat):
+    """The second rung: heat that would be fine on a desk, with nowhere to go."""
+
+    lid = True
+
+    def battery(self, celsius, name="BAT0", **values):
+        self.supply(name, type="Battery", capacity=80, status="Discharging", temp=int(celsius * 10), **values)
+
+    def test_a_hot_battery_counts_once_its_lasted_a_minute(self):
+        self.battery(45)
+        self.assertFalse(self.stays_hot_for(59))
+        self.assertTrue(self.stays_hot_for(60))
+
+    def test_a_battery_just_under_the_line_is_fine(self):
+        self.battery(44.9)
+        self.assertFalse(self.stays_hot_for(3600))
+
+    def test_with_the_lid_open_a_hot_battery_never_stops_it(self):
+        self.battery(55)
+        self.lid = False
+        self.assertFalse(self.stays_hot_for(3600))
+
+    def test_not_knowing_about_the_lid_counts_as_open(self):
+        self.battery(55)
+        self.lid = None
+        self.assertFalse(self.stays_hot_for(3600))
+
+    def test_a_zone_nearing_its_critical_point_counts(self):
+        self.zone(0, 100, trip_point_0_type="critical", trip_point_0_temp=108000)
+        self.assertFalse(self.stays_hot_for(59))
+        self.assertTrue(self.stays_hot_for(60))
+
+    def test_a_zone_further_away_is_fine(self):
+        self.zone(0, 99, trip_point_0_type="critical", trip_point_0_temp=108000)
+        self.assertFalse(self.stays_hot_for(3600))
+
+    def test_the_cpus_own_sensors_count_from_five_degrees_away(self):
+        self.files("class/hwmon/hwmon0", name="coretemp", temp1_input=95000, temp1_crit=100000)
+        self.assertFalse(self.stays_hot_for(59))
+        self.assertTrue(self.stays_hot_for(60))
+        self.files("class/hwmon/hwmon0", name="coretemp", temp1_input=94000, temp1_crit=100000)
+        self.assertFalse(self.stays_hot_for(3600))
+
+    def test_a_sensor_with_no_limit_still_needs_to_be_extreme(self):
+        self.zone(0, 100)
+        self.assertFalse(self.stays_hot_for(3600))
+
+    def test_critical_doesnt_wait_the_full_minute(self):
+        self.zone(0, 106, trip_point_0_type="critical", trip_point_0_temp=108000)
+        self.assertFalse(self.stays_hot_for(29))
+        self.assertTrue(self.stays_hot_for(30))
+
+    def test_a_cool_sample_starts_the_minute_again(self):
+        self.battery(46)
+        monitor = self.monitor()
+        monitor.is_overheating()
+        self.now = 55
+        self.battery(39)
+        self.assertFalse(monitor.is_overheating())
+        self.battery(46)
+        self.now = 60
+        self.assertFalse(monitor.is_overheating())
+        self.now = 119
+        self.assertFalse(monitor.is_overheating())
+        self.now = 120
+        self.assertTrue(monitor.is_overheating())
+
+    def test_opening_the_lid_starts_the_minute_again(self):
+        self.battery(46)
+        monitor = self.monitor()
+        monitor.is_overheating()
+        self.now, self.lid = 55, False
+        self.assertFalse(monitor.is_overheating())
+        self.now, self.lid = 60, True
+        self.assertFalse(monitor.is_overheating())
+        self.now = 120
+        self.assertTrue(monitor.is_overheating())
+
+    def test_being_asked_often_doesnt_make_it_trigger_sooner(self):
+        self.battery(50)
+        monitor = self.monitor()
+        for _ in range(590):
+            self.now += 0.1
+            self.assertFalse(monitor.is_overheating())
+
+    def test_the_lid_is_only_asked_about_once_theres_heat(self):
+        self.battery(30)
+        self.zone(0, 50, trip_point_0_type="critical", trip_point_0_temp=108000)
+        asked = []
+        monitor = thermal.Monitor(clock=lambda: 0.0, lid=lambda: asked.append(1) or True)
+        monitor.is_overheating()
+        self.assertEqual(asked, [])
+        self.battery(46)
+        monitor.is_overheating()
+        self.assertEqual(asked, [1])
+
+    def test_battery_readings_that_cant_be_real_are_ignored(self):
+        for celsius in (0, -273.2, 0.5, 100.5, 6553.5):
+            with self.subTest(celsius=celsius):
+                self.battery(celsius)
+                self.assertIsNone(battery.temperature())
+                self.assertFalse(self.stays_hot_for(3600))
+        self.supply("BAT0", type="Battery", temp="warm")
+        self.assertIsNone(battery.temperature())
+
+    def test_a_laptop_with_no_battery_sensor_just_has_no_reading(self):
+        self.supply("BAT0", type="Battery", capacity=80, status="Discharging")
+        self.assertIsNone(battery.temperature())
+        self.assertFalse(self.stays_hot_for(3600))
+
+    def test_a_wireless_mouse_isnt_the_laptop(self):
+        self.supply("hidpp_battery_0", type="Battery", scope="Device", temp=600)
+        self.assertIsNone(battery.temperature())
+
+    def test_the_warmest_of_two_batteries_counts(self):
+        self.battery(33, "BAT0")
+        self.battery(46.5, "BAT1")
+        self.assertEqual(battery.temperature(), 46.5)
+        self.assertTrue(self.stays_hot_for(60))
+
+    def test_a_simulated_lock_never_reads_the_real_battery(self):
+        self.battery(60)
+        with mock.patch.dict(os.environ, {"WICK_SIMULATE_POWER_FILE": "/nowhere"}):
+            self.assertEqual(battery.temperature(), 60)
+            del os.environ["WICK_SYSFS_ROOT"]
+            self.assertIsNone(battery.temperature())
+
+
+class Lid(FakeSysfs):
+    def setUp(self):
+        super().setUp()
+        self.acpi = self.root / "acpi-lids"
+        patcher = mock.patch.object(thermal, "_ACPI_LIDS", self.acpi)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def acpi_says(self, state):
+        (self.acpi / "LID0").mkdir(parents=True, exist_ok=True)
+        (self.acpi / "LID0" / "state").write_text(f"state:      {state}\n", encoding="utf-8")
+
+    def logind_says(self, output, returncode=0):
+        result = mock.Mock(returncode=returncode, stdout=output)
+        return mock.patch.multiple(
+            "wick.power",
+            shutil=mock.Mock(which=mock.Mock(return_value="/usr/bin/busctl")),
+            subprocess=mock.Mock(run=mock.Mock(return_value=result), SubprocessError=subprocess.SubprocessError),
+        )
+
+    def test_logind_saying_closed_is_enough(self):
+        with self.logind_says("b true\n"):
+            self.assertIs(thermal.lid_closed(), True)
+
+    def test_logind_says_open_for_a_desktop_too_so_that_alone_is_unknown(self):
+        with self.logind_says("b false\n"):
+            self.assertIsNone(thermal.lid_closed())
+
+    def test_open_is_believed_where_acpi_knows_of_a_lid(self):
+        self.acpi_says("open")
+        with self.logind_says("b false\n"):
+            self.assertIs(thermal.lid_closed(), False)
+
+    def test_acpi_fills_in_when_logind_cant_be_asked(self):
+        self.acpi_says("closed")
+        for output, returncode in (("", 1), ("s \"maybe\"\n", 0), ("garbage", 0), ("b perhaps", 0)):
+            with self.subTest(output=output), self.logind_says(output, returncode):
+                self.assertIsNone(power.lid_closed())
+                self.assertIs(thermal.lid_closed(), True)
+
+    def test_no_busctl_and_no_acpi_is_unknown(self):
+        with mock.patch("shutil.which", return_value=None):
+            self.assertIsNone(power.lid_closed())
+            self.assertIsNone(thermal.lid_closed())
+
+    def test_a_slow_logind_reads_as_unknown_rather_than_crashing(self):
+        slow = subprocess.TimeoutExpired("busctl", 5)
+        with mock.patch("shutil.which", return_value="/usr/bin/busctl"), mock.patch("subprocess.run", side_effect=slow):
+            self.assertIsNone(power.lid_closed())
+
+    def test_simulation_overrides(self):
+        for value, expected in (("closed", True), ("open", False), ("CLOSED", True)):
+            with self.subTest(value=value), mock.patch.dict(os.environ, {"WICK_SIMULATE_LID": value}):
+                self.assertIs(thermal.lid_closed(), expected)
+
+    def test_a_simulated_lock_never_asks_about_the_real_lid(self):
+        self.acpi_says("closed")
+        with mock.patch.dict(os.environ, {"WICK_SIMULATE_POWER_FILE": "/nowhere"}), self.logind_says("b true\n"):
+            self.assertIsNone(thermal.lid_closed())
+
+
+class HeatInWords(FakeSysfs):
+    def heat(self, lid=None):
+        return thermal.Heat.current(lid=lambda: lid)
+
+    def test_cool_warm_and_hot(self):
+        self.assertEqual(self.heat().word, "Cool")
+        self.supply("BAT0", type="Battery", temp=400)
+        self.assertEqual(self.heat().word, "Warm")
+        self.supply("BAT0", type="Battery", temp=450)
+        self.assertEqual(self.heat().word, "Hot")
+
+    def test_a_cpu_working_hard_reads_as_warm_then_hot(self):
+        self.files("class/hwmon/hwmon0", name="coretemp", temp1_input=60000, temp1_crit=100000)
+        self.assertEqual(self.heat().word, "Cool")
+        self.files("class/hwmon/hwmon0", name="coretemp", temp1_input=90000, temp1_crit=100000)
+        self.assertEqual(self.heat().word, "Warm")
+        self.files("class/hwmon/hwmon0", name="coretemp", temp1_input=96000, temp1_crit=100000)
+        self.assertEqual(self.heat().word, "Hot")
+
+    def test_says_what_it_knows_and_nothing_it_doesnt(self):
+        self.assertEqual(self.heat().sentence(is_guarded=True), "Heat: cool.")
+        self.supply("BAT0", type="Battery", temp=312)
+        self.assertEqual(self.heat(lid=False).sentence(is_guarded=True), "Heat: cool, battery 31°C, lid open.")
+
+    def test_only_promises_to_stop_when_a_guard_is_watching(self):
+        self.supply("BAT0", type="Battery", temp=460)
+        closed = self.heat(lid=True)
+        self.assertEqual(closed.sentence(is_guarded=False), "Heat: hot, battery 46°C, lid closed.")
+        self.assertEqual(
+            closed.sentence(is_guarded=True), "Heat: hot, battery 46°C, lid closed. Wick stops if this lasts a minute."
+        )
+        self.assertEqual(self.heat(lid=False).sentence(is_guarded=True), "Heat: hot, battery 46°C, lid open.")
+
+    def test_what_the_panels_get(self):
+        self.supply("BAT0", type="Battery", temp=312)
+        self.assertEqual(
+            thermal.Heat.current(lid=lambda: True, always_ask_lid=False).to_dict(),
+            {"word": "Cool", "batteryCelsius": 31.2, "lidClosed": None},
+        )
+        self.supply("BAT0", type="Battery", temp=460)
+        self.assertEqual(
+            thermal.Heat.current(lid=lambda: True, always_ask_lid=False).to_dict(),
+            {"word": "Hot", "batteryCelsius": 46.0, "lidClosed": True},
+        )
 
 
 class NoLogind(unittest.TestCase):

@@ -3,240 +3,401 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wick: keep your laptop awake with the lid closed</title>
+    <title>Wick: close the lid, the agents stay late</title>
     <meta
       name="description"
-      content="Wick is a free, open source app for macOS and Linux that keeps your laptop awake with the lid closed, so coding agents and builds finish while you walk away."
+      content="Wick is a free, open source app for macOS and Linux that keeps your laptop awake with the lid closed, so coding agents and builds finish while you walk away. It always puts sleep back, and it stops if the laptop runs hot with the lid closed."
     />
-    <meta name="theme-color" content="#F7F4EF" />
+    <meta name="theme-color" content="#F5F2EE" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <meta property="og:title" content="Wick: close the lid, keep working" />
-    <meta property="og:description" content="Keeps your Mac or Linux laptop awake with the lid closed, and always puts sleep back." />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta property="og:title" content="Wick: close the lid, the agents stay late" />
+    <meta
+      property="og:description"
+      content="Keeps your Mac or Linux laptop awake with the lid closed. Always puts sleep back, and quits if it runs hot."
+    />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://s1lvazxy.github.io/wick/og.png" />
     <meta property="og:url" content="https://s1lvazxy.github.io/wick/" />
     <meta name="twitter:card" content="summary_large_image" />
     <script>
       document.documentElement.classList.add("js");
-      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) document.documentElement.classList.add("scrub");
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) document.documentElement.classList.add("reduced");
     </script>
   </head>
   <body>
     <a class="skip" href="#install">Skip to install</a>
 
+    <!-- One laptop for the whole page. It closes in the first scene, heats up in the heat section, and opens again at dawn. -->
+    <canvas class="world" id="world" aria-hidden="true"></canvas>
+
     <header class="nav" data-tone="day">
       <a class="nav-brand" href="#top" aria-label="Wick, back to top">
-        <img class="on-day" src="./lockup-dark.svg" alt="" width="92" height="28" />
-        <img class="on-night" src="./lockup-light.svg" alt="" width="92" height="28" />
+        <svg viewBox="0 36 376 86" width="105" height="24" aria-hidden="true">
+          <g transform="translate(-18.9428 0) scale(6.532)" fill="none">
+            <path d="M20.5 16.3H4.87A1 1 0 0 1 4.3 14.48L14 7.7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <circle class="nav-ember" cx="15.8" cy="11.9" r="2.25" />
+          </g>
+          <path transform="translate(157.42 44.30)" fill="currentColor" d="M2.11 0H13.25L26.5 53.86L39.74 0H50.21L63.55 53.86L76.7 0H87.84L69.79 68.16H57.6L44.93 18.43L32.26 68.16H20.26ZM95.04 17.09H105.22V68.16H95.04ZM94.85 -0.48H105.5V9.7H94.85ZM114.53 42.62Q114.53 34.66 117.5 28.61Q120.48 22.56 126 19.25Q131.52 15.94 138.82 15.94Q148.22 15.94 154.27 20.83Q160.32 25.73 161.57 34.46L151.01 35.04Q150.24 30.14 146.98 27.46Q143.71 24.77 138.82 24.77Q132.38 24.77 128.74 29.47Q125.09 34.18 125.09 42.62Q125.09 51.07 128.74 55.78Q132.38 60.48 138.82 60.48Q143.81 60.48 147.02 57.65Q150.24 54.82 151.01 49.44L161.57 50.02Q160.32 58.85 154.22 64.08Q148.13 69.31 138.82 69.31Q131.52 69.31 126 66Q120.48 62.69 117.5 56.64Q114.53 50.59 114.53 42.62ZM169.92 0H180.1V42.34L203.04 17.09H215.9L195.94 38.59L216.67 68.16H204.96L189.12 44.93L180.1 54.53V68.16H169.92Z" />
+        </svg>
       </a>
       <nav aria-label="Main">
         <a href="#how">What it does</a>
-        <a href="#safety">Safety</a>
+        <a href="#heat">Heat</a>
         <a href="#install">Install</a>
         <a href="https://github.com/s1lvazxy/wick">GitHub</a>
       </nav>
+      <a class="hud" href="#how" data-state="open" aria-label="This page's own Wick session. Jump to the panel.">
+        <span class="hud-dot" aria-hidden="true"></span>
+        <span class="hud-time" id="hud-time">2:00:00</span>
+        <span class="hud-note" id="hud-note">lid open</span>
+      </a>
     </header>
 
     <main>
-      <!-- The concept: the page is a laptop closing. Scrolling lowers the lid, day becomes night, the ember stays lit. -->
-      <section class="scene" id="top" data-tone="day" aria-labelledby="headline">
-        <div class="scene-pin">
-          <div class="stage">
-            <div class="sky" aria-hidden="true"></div>
+      <!-- The concept: this page is a laptop. You close it, and it keeps running. -->
+      <section class="scene" id="top" aria-labelledby="headline">
+        <div class="stage">
+          <div class="sky sky-dusk" aria-hidden="true"></div>
+          <div class="sky sky-night" aria-hidden="true">
+            <img src="./coal.webp" alt="" width="1920" height="1080" />
+          </div>
 
-            <div class="hero-copy">
-              <h1 id="headline">Close the lid.<br />Keep working.</h1>
-            </div>
+          <div class="hero">
+            <h1 id="headline">
+              <span class="line"><span>Close the lid.</span></span>
+              <span class="line"><span>The agents</span></span>
+              <span class="line"><span>stay late.</span></span>
+            </h1>
 
-            <div class="under">
+            <div class="hero-foot">
               <p class="lede">
-                Wick keeps your laptop awake with the lid shut, so coding agents, builds and downloads finish while you
-                walk away. Free and open source, for macOS and Linux.
+                <span class="lede-fun">Your laptop thinks a closed lid means bedtime. Your coding agent was mid-sentence.</span>
+                Wick keeps a Mac or Linux laptop awake with the lid shut, then puts sleep back. Every time.
               </p>
-              <div class="under-actions">
+              <div class="hero-actions">
                 <div class="command">
                   <code>brew install --cask s1lvazxy/tap/wick</code>
                   <button class="copy" type="button" data-copy="brew install --cask s1lvazxy/tap/wick">Copy</button>
                 </div>
-                <a class="text-link" href="#install">Other ways to install <span aria-hidden="true">↓</span></a>
+                <a class="text-link" href="#install">Linux, and other ways in <span aria-hidden="true">↓</span></a>
               </div>
             </div>
 
-            <div class="laptop" aria-hidden="true">
-              <div class="halo"></div>
-              <div class="lid"></div>
-              <div class="base"></div>
-              <div class="ember"></div>
-            </div>
+            <p class="cue" aria-hidden="true"><span class="cue-arrow">↓</span> Scroll, or drag the lid shut</p>
+            <img class="still still-open" src="./laptop-open.webp" alt="" width="1600" height="1133" loading="lazy" />
           </div>
 
-          <div class="dusk" aria-hidden="true"></div>
-          <div class="night">
-            <img class="night-coal" src="./coal.webp" alt="" width="1920" height="1080" />
-            <div class="night-copy">
-              <h2>macOS would sleep here.<br />Wick stays lit.</h2>
-              <p>
-                Your agent keeps running and the network stays up. When the time you set runs out, your Mac goes back to
-                sleeping as usual.
-              </p>
-            </div>
+          <div class="lid-grab" aria-hidden="true"></div>
+
+          <ol class="lines" aria-label="What happens when the lid closes">
+            <li class="say" data-who="macos">
+              <span class="who">macOS</span>
+              <p>Lid's closing. Bedtime, everyone.</p>
+            </li>
+            <li class="say" data-who="agent">
+              <span class="who">your agent</span>
+              <p>I was on step 9 of 14—</p>
+            </li>
+            <li class="say" data-who="wick">
+              <span class="who">wick</span>
+              <p>Nobody's going anywhere.</p>
+            </li>
+          </ol>
+
+          <p class="aside" aria-hidden="true">Hold it right there. That's the logo.</p>
+
+          <div class="closed">
+            <img class="still still-closed" src="./laptop-closed.webp" alt="" width="1600" height="900" loading="lazy" />
+            <h2>macOS would sleep here.<br />Wick stays lit.</h2>
+            <p>
+              Your agent keeps running and the network stays up. When the time you set runs out, the laptop goes back
+              to sleeping as usual.
+            </p>
           </div>
         </div>
       </section>
 
-      <div class="after-dark" data-tone="night">
-        <section class="how" id="how" aria-labelledby="how-title">
-          <header class="section-head">
-            <p class="eyebrow">What it does</p>
-            <h2 id="how-title">One button, with the stopping built in.</h2>
-            <p class="section-note">
-              Pick how long, press play, close the lid. This is the panel that drops from your menu bar. Try it, nothing
-              here touches your Mac.
-            </p>
-          </header>
+      <section class="inside" id="how" data-tone="night" aria-labelledby="how-title">
+        <header class="section-head">
+          <p class="eyebrow"><span>01</span> What it does</p>
+          <h2 id="how-title" class="split">One button, with the stopping built&nbsp;in.</h2>
+          <p class="section-note reveal">
+            Pick how long, press play, close the lid. This is the panel that drops from your menu bar. Play with it,
+            nothing here touches your laptop.
+          </p>
+        </header>
 
-          <div class="tiles">
-            <figure class="tile tile-demo">
-              <div class="panel" id="demo" data-awake="false">
-                <div class="panel-glow" aria-hidden="true"></div>
-                <p class="panel-status"><span class="dot" aria-hidden="true"></span><span id="demo-status">Sleeps when the lid closes</span></p>
-                <div class="panel-hero">
+        <div class="bench">
+          <figure class="bench-panel reveal">
+            <div class="panel" id="demo" data-awake="false">
+              <div class="panel-glow" aria-hidden="true"></div>
+              <p class="panel-status"><span class="dot" aria-hidden="true"></span><span id="demo-status">Sleeps when the lid closes</span></p>
+              <div class="panel-hero">
+                <div>
+                  <p class="panel-time" id="demo-time" aria-live="off">2:00</p>
+                  <p class="panel-caption" id="demo-caption">for the next 2 hours</p>
+                </div>
+                <button class="panel-play" id="demo-play" type="button" aria-label="Keep awake">
+                  <svg class="glyph-play" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M6.2 3.6c0-.8.9-1.3 1.6-.9l9 5.9c.6.4.6 1.3 0 1.7l-9 5.9c-.7.4-1.6-.1-1.6-.9z" fill="currentColor"/></svg>
+                  <svg class="glyph-stop" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><rect x="4.5" y="4.5" width="11" height="11" rx="2" fill="currentColor"/></svg>
+                </button>
+              </div>
+              <canvas
+                class="panel-ruler"
+                id="demo-ruler"
+                tabindex="0"
+                role="slider"
+                aria-label="Duration"
+                aria-valuemin="5"
+                aria-valuemax="720"
+                aria-valuenow="120"
+                aria-valuetext="2 hours"
+              ></canvas>
+              <div class="panel-presets" role="group" aria-label="Duration presets">
+                <button type="button" data-minutes="30">30m</button>
+                <button type="button" data-minutes="60">1h</button>
+                <button type="button" data-minutes="120" aria-pressed="true">2h</button>
+                <button type="button" data-minutes="240">4h</button>
+                <button type="button" data-minutes="480">8h</button>
+              </div>
+              <div class="panel-card">
+                <div class="panel-row">
                   <div>
-                    <p class="panel-time" id="demo-time" aria-live="off">2:00</p>
-                    <p class="panel-caption" id="demo-caption">for the next 2 hours</p>
+                    <p>Stop when agents finish</p>
+                    <small>Claude Code running</small>
                   </div>
-                  <button class="panel-play" id="demo-play" type="button" aria-label="Keep awake">
-                    <svg class="glyph-play" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M6.2 3.6c0-.8.9-1.3 1.6-.9l9 5.9c.6.4.6 1.3 0 1.7l-9 5.9c-.7.4-1.6-.1-1.6-.9z" fill="currentColor"/></svg>
-                    <svg class="glyph-stop" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><rect x="4.5" y="4.5" width="11" height="11" rx="2" fill="currentColor"/></svg>
-                  </button>
+                  <button class="switch" id="demo-switch" type="button" role="switch" aria-checked="false" aria-label="Stop when agents finish"><span></span></button>
                 </div>
-                <canvas
-                  class="panel-ruler"
-                  id="demo-ruler"
-                  tabindex="0"
-                  role="slider"
-                  aria-label="Duration"
-                  aria-valuemin="5"
-                  aria-valuemax="720"
-                  aria-valuenow="120"
-                  aria-valuetext="2 hours"
-                ></canvas>
-                <div class="panel-presets" role="group" aria-label="Duration presets">
-                  <button type="button" data-minutes="30">30m</button>
-                  <button type="button" data-minutes="60">1h</button>
-                  <button type="button" data-minutes="120" aria-pressed="true">2h</button>
-                  <button type="button" data-minutes="240">4h</button>
-                  <button type="button" data-minutes="480">8h</button>
+                <div class="panel-row">
+                  <div>
+                    <p>Stop at low battery</p>
+                    <small>84%, plugged in</small>
+                  </div>
+                  <span class="panel-value">20%</span>
                 </div>
-                <div class="panel-card">
-                  <div class="panel-row">
-                    <div>
-                      <p>Stop when agents finish</p>
-                      <small>Claude Code running</small>
-                    </div>
-                    <button class="switch" id="demo-switch" type="button" role="switch" aria-checked="false" aria-label="Stop when agents finish"><span></span></button>
+                <div class="panel-row">
+                  <div>
+                    <p>Stops if it gets hot</p>
+                    <small id="demo-heat">Cool, battery 31°C</small>
                   </div>
-                  <div class="panel-row">
-                    <div>
-                      <p>Stop at low battery</p>
-                      <small>84%, plugged in</small>
-                    </div>
-                    <span class="panel-value">20%</span>
-                  </div>
+                  <span class="panel-value panel-always">Always</span>
                 </div>
               </div>
-              <figcaption>
-                <strong>Drag the ruler.</strong> It's the wick: the lit ticks are the time left to burn.
-              </figcaption>
-            </figure>
+            </div>
+            <figcaption>
+              <strong>Drag the ruler.</strong> It's the wick: the lit ticks are the time left to burn.
+            </figcaption>
+          </figure>
 
-            <figure class="tile tile-agents">
+          <div class="bench-notes">
+            <article class="note reveal">
+              <h3>It knows who's on shift.</h3>
+              <p>
+                Wick spots Claude Code, Codex, Aider, OpenCode, Gemini CLI and six more. Tell it to stop when the
+                last one clocks out, and it waits 90 seconds first, in case that one was only restarting.
+              </p>
+              <ul class="roster" aria-label="Agents on shift, an example">
+                <li data-on="true"><span>Claude Code</span><span>on shift</span></li>
+                <li data-on="true"><span>Codex</span><span>on shift</span></li>
+                <li data-on="false"><span>Aider</span><span>clocked out 02:14</span></li>
+              </ul>
+            </article>
+
+            <article class="note reveal">
+              <h3>Or skip the app entirely.</h3>
+              <p>The same thing, from the terminal. It ends when the command does.</p>
               <div class="terminal" aria-label="Example terminal session">
                 <p><span>$</span> wick run claude</p>
                 <p class="dim">Awake while this runs. Back to normal when it exits.</p>
-                <p class="gap"><span>$</span> wick agents</p>
-                <p>Claude Code</p>
-                <p>Codex</p>
               </div>
-              <figcaption>
-                <strong>It knows your agents.</strong> Wick sees Claude Code, Codex, Aider, OpenCode, Gemini CLI and more,
-                and can stop when the last one exits.
-              </figcaption>
-            </figure>
-
-            <figure class="tile tile-bar">
-              <div class="menubar" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="M20.5 16.3H4.87A1 1 0 0 1 4.3 14.48L14 7.7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="15.8" cy="11.9" r="2.25" fill="currentColor"/></svg>
-                <span>1h 42m</span>
-              </div>
-              <figcaption>
-                <strong>Always visible.</strong> A small mark in your menu bar. A filled ember means sleep is off, and how
-                long is left sits next to it.
-              </figcaption>
-            </figure>
+            </article>
           </div>
-        </section>
+        </div>
 
-        <section class="safety" id="safety" aria-labelledby="safety-title">
-          <div class="safety-head">
-            <p class="eyebrow">Safety</p>
-            <h2 id="safety-title">It always puts sleep back.</h2>
-            <p class="section-note">
-              Forgetting <code>pmset disablesleep 1</code> is how a laptop cooks in a backpack. So Wick treats turning it
-              off again as the main job.
+        <figure class="bar reveal">
+          <div class="menubar" aria-hidden="true">
+            <span class="menubar-app"><b>Terminal</b><i>Shell</i><i>Edit</i><i>View</i><i>Window</i></span>
+            <span class="menubar-status">
+              <span class="menubar-wick">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M20.5 16.3H4.87A1 1 0 0 1 4.3 14.48L14 7.7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="15.8" cy="11.9" r="2.25" fill="currentColor"/></svg>
+                <span id="bar-time">1h 42m</span>
+              </span>
+              <i>Tue 02:14</i>
+            </span>
+          </div>
+          <figcaption>
+            <strong>It lives in your menu bar.</strong> A filled ember means sleep is off, with the time left beside
+            it. No window, no dock icon, no dashboard to admire.
+          </figcaption>
+        </figure>
+      </section>
+
+      <div class="tape" data-tone="night" aria-hidden="true">
+        <div class="tape-band">
+          <div class="tape-track">
+            <span>Refactor merged</span><span>214 tests green</span><span>3.2 GB downloaded</span><span>Image built</span><span>Nobody watched</span><span>Lid stayed shut</span>
+            <span>Refactor merged</span><span>214 tests green</span><span>3.2 GB downloaded</span><span>Image built</span><span>Nobody watched</span><span>Lid stayed shut</span>
+          </div>
+        </div>
+      </div>
+
+      <section class="heat" id="heat" data-tone="night" aria-labelledby="heat-title">
+        <div class="heat-stage">
+          <div class="heat-slot" id="heat-slot">
+            <img class="still still-heat" src="./laptop-closed.webp" alt="" width="1600" height="900" loading="lazy" />
+            <svg class="steam" viewBox="0 0 240 120" aria-hidden="true" fill="none">
+              <path d="M40 112c-14-18 14-30 0-48s14-30 0-48" />
+              <path d="M120 112c-14-18 14-30 0-48s14-30 0-48" />
+              <path d="M200 112c-14-18 14-30 0-48s14-30 0-48" />
+            </svg>
+          </div>
+          <div class="gauge" id="gauge" data-level="cool">
+            <p class="gauge-temp"><span id="heat-temp">31</span><sup>°C</sup></p>
+            <p class="gauge-level" id="heat-level">Cool</p>
+            <div class="gauge-bar" aria-hidden="true">
+              <i id="heat-fill"></i>
+              <span style="left: 0%">Cool</span>
+              <span style="left: 20%">Warm</span>
+              <span style="left: 45%">Hot</span>
+              <span style="left: 90%">Critical</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="heat-copy">
+          <p class="eyebrow"><span>02</span> The overheating question</p>
+          <h2 id="heat-title" class="split">We will not cook your laptop.</h2>
+          <p class="section-note reveal">
+            A closed laptop in a backpack is an oven with a keyboard. So Wick watches the heat the whole time, and
+            gives up early rather than late. You can't turn this off. That's the feature.
+          </p>
+
+          <div class="cooker reveal">
+            <div class="cooker-controls">
+              <button class="hold" id="heat-hold" type="button" aria-describedby="heat-help">
+                <span class="hold-ring" aria-hidden="true"></span>
+                <span class="hold-label">Hold to heat</span>
+              </button>
+              <div class="lid-toggle" role="group" aria-label="Lid">
+                <button type="button" id="lid-closed" aria-pressed="true">Lid closed</button>
+                <button type="button" id="lid-open" aria-pressed="false">Lid open</button>
+              </div>
+            </div>
+            <p class="cooker-help" id="heat-help">
+              Press and hold, with a mouse, a finger, or the space bar. Let go and it cools.
             </p>
+            <p class="cooker-log" id="heat-log">Awake, lid closed, perfectly comfortable.</p>
+            <p class="sr-only" role="status" id="heat-status"></p>
+            <div class="cooker-timer" aria-hidden="true"><i id="heat-timer"></i></div>
+            <p class="cooker-small" id="heat-small">The minute runs at 12× here. You have places to be.</p>
           </div>
-          <div class="rail">
-            <div class="rail-fill" aria-hidden="true"></div>
-            <ol class="rail-list">
-              <li>
-                <h3>A guard outlives the app</h3>
-                <p>
-                  Every session is enforced by a small separate process. If the app crashes or the terminal closes, the
-                  timer still ends on time.
-                </p>
-              </li>
-              <li>
-                <h3>Low battery stops it</h3>
-                <p>On battery, Wick lets go at 20% by default, so your Mac can sleep rather than die mid-task.</p>
-              </li>
-              <li>
-                <h3>Heat stops it</h3>
-                <p>If macOS reports a critical thermal state, the session ends. You can't turn this one off.</p>
-              </li>
-              <li>
-                <h3>Logging out or quitting stops it</h3>
-                <p>
-                  Quit Wick, log out or shut down, and sleep comes back. If the guard is ever force-killed or the power
-                  cuts out, a background job picks the session up within five minutes.
-                </p>
-              </li>
-              <li>
-                <h3>The permission is one line</h3>
-                <p>A sudoers rule that allows two exact commands and nothing else. Read it, or remove it with <code>wick uninstall</code>.</p>
-                <pre class="rule" tabindex="0"><code>you ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1</code></pre>
-              </li>
-            </ol>
-            <p class="warning">Keep it out of bags while it's awake. A closed Mac sheds heat slowly, and no software fixes that.</p>
-          </div>
-        </section>
-      </div>
 
-      <div class="dawn" data-tone="night">
-        <img src="./coal.webp" alt="" width="1920" height="1080" />
-        <p>By morning the work is done, and your Mac sleeps like normal again.</p>
-      </div>
+          <ol class="rungs">
+            <li class="reveal">
+              <h3>Hot with the lid closed, for a minute</h3>
+              <p>
+                macOS reports a serious thermal state, or the battery reaches 45°C. Wick ends the session and the
+                laptop sleeps. A single cooler reading starts the minute again.
+              </p>
+            </li>
+            <li class="reveal">
+              <h3>Critical, lid open or not</h3>
+              <p>
+                On a Mac, Wick ends the session at once. No minute, no negotiation. On Linux it waits 30 seconds at
+                the limit first, in case a sensor is lying.
+              </p>
+            </li>
+            <li class="reveal">
+              <h3>On Linux, the same idea</h3>
+              <p>
+                It reads the kernel's own sensors. With the lid closed, a minute with the battery at 45°C, or with a
+                sensor within 8°C of its critical point (5°C for the CPU's own), ends the session.
+              </p>
+            </li>
+          </ol>
+
+          <p class="warning reveal">
+            Still: keep it out of bags while it's awake. Wick can end a session. It can't air-condition a backpack.
+          </p>
+        </div>
+      </section>
+
+      <section class="safety" id="safety" data-tone="night" aria-labelledby="safety-title">
+        <header class="section-head">
+          <p class="eyebrow"><span>03</span> Safety</p>
+          <h2 id="safety-title" class="split">It always puts sleep back.</h2>
+          <p class="section-note reveal">
+            Forgetting <code>pmset disablesleep 1</code> is how a laptop ends up awake for a week. So Wick treats
+            turning it off again as the main job.
+          </p>
+        </header>
+
+        <div class="rail">
+          <div class="rail-line" aria-hidden="true"><i class="rail-fill"></i><b class="rail-ember"></b></div>
+          <ol class="rail-list">
+            <li class="reveal">
+              <span class="rail-number" aria-hidden="true">1</span>
+              <h3>A guard outlives the app</h3>
+              <p>
+                Every session is enforced by a small separate process. If the app crashes or the terminal closes, the
+                timer still ends on time.
+              </p>
+            </li>
+            <li class="reveal">
+              <span class="rail-number" aria-hidden="true">2</span>
+              <h3>Low battery stops it</h3>
+              <p>On battery, Wick lets go at 20% by default, so the laptop can sleep rather than die mid-task.</p>
+            </li>
+            <li class="reveal">
+              <span class="rail-number" aria-hidden="true">3</span>
+              <h3>Heat stops it</h3>
+              <p>See above. This is the one without a switch.</p>
+            </li>
+            <li class="reveal">
+              <span class="rail-number" aria-hidden="true">4</span>
+              <h3>Quitting, logging out or shutting down stops it</h3>
+              <p>
+                Sleep comes back. If the guard is ever force-killed or the power cuts out, a background job picks the
+                session up within five minutes.
+              </p>
+            </li>
+            <li class="reveal">
+              <span class="rail-number" aria-hidden="true">5</span>
+              <h3>The permission is one line</h3>
+              <p>
+                On a Mac, a sudoers rule that allows two exact commands and nothing else. Read it, or remove it with
+                <code>wick uninstall</code>. Linux needs no root at all.
+              </p>
+              <pre class="rule" tabindex="0"><code>you ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1</code></pre>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="dawn" aria-labelledby="dawn-title">
+        <div class="dawn-stage">
+          <div class="sky sky-dawn" aria-hidden="true"></div>
+          <div class="dawn-slot" id="dawn-slot">
+            <img class="still still-dawn" src="./laptop-open.webp" alt="" width="1600" height="1133" loading="lazy" />
+          </div>
+          <div class="dawn-copy">
+            <h2 id="dawn-title">By morning, the work is done.</h2>
+            <p>Fourteen steps out of fourteen. And the laptop sleeps like normal again.</p>
+          </div>
+        </div>
+      </section>
 
       <section class="install" id="install" data-tone="day" aria-labelledby="install-title">
         <header class="section-head">
-          <p class="eyebrow">Install</p>
-          <h2 id="install-title">Four steps, about a minute.</h2>
-          <p class="section-note">On macOS 14 or later, Apple silicon or Intel. Or on Linux, with systemd.</p>
+          <p class="eyebrow"><span>04</span> Install</p>
+          <h2 id="install-title" class="split">Four steps, about a minute.</h2>
+          <p class="section-note reveal">On macOS 14 or later, Apple silicon or Intel. Or on Linux, with systemd.</p>
         </header>
 
         <ol class="steps">
-          <li class="step">
-            <span class="step-number" aria-hidden="true">/01</span>
+          <li class="step reveal">
+            <span class="step-number" aria-hidden="true">01</span>
             <div class="step-body">
               <h3>Get the app</h3>
               <p>Homebrew is the easiest way to install and update Wick, and it adds the <code>wick</code> command too.</p>
@@ -262,8 +423,8 @@
                 </div>
                 <div role="tabpanel" id="panel-linux" aria-labelledby="tab-linux" tabindex="0" hidden>
                   <div class="command command-large">
-                    <code>pipx install "git+https://github.com/s1lvazxy/wick@v0.2.0#subdirectory=linux" &amp;&amp; wick setup</code>
-                    <button class="copy" type="button" data-copy='pipx install "git+https://github.com/s1lvazxy/wick@v0.2.0#subdirectory=linux" &amp;&amp; wick setup'>Copy</button>
+                    <code>pipx install "git+https://github.com/s1lvazxy/wick#subdirectory=linux" &amp;&amp; wick setup</code>
+                    <button class="copy" type="button" data-copy='pipx install "git+https://github.com/s1lvazxy/wick#subdirectory=linux" &amp;&amp; wick setup'>Copy</button>
                   </div>
                   <p class="tab-note">
                     Adds a top bar extension on GNOME, or run <code>wick app</code> elsewhere. Needs systemd-logind, and no
@@ -275,17 +436,17 @@
             </div>
           </li>
 
-          <li class="step">
-            <span class="step-number" aria-hidden="true">/02</span>
+          <li class="step reveal">
+            <span class="step-number" aria-hidden="true">02</span>
             <div class="step-body">
               <h3>Open it and press play</h3>
               <p>Wick lives in your menu bar or top bar, with no window of its own. Click the mark, pick a duration, press play.</p>
             </div>
-            <img class="step-shot" src="./shot-idle.webp" alt="The Wick panel showing 2:00 and a play button." width="680" height="682" loading="lazy" />
+            <img class="step-shot" src="./shot-idle.webp" alt="The Wick panel showing 2:00, a play button, and its three stopping rules: agents, battery and heat." width="680" height="784" loading="lazy" />
           </li>
 
-          <li class="step">
-            <span class="step-number" aria-hidden="true">/03</span>
+          <li class="step reveal">
+            <span class="step-number" aria-hidden="true">03</span>
             <div class="step-body">
               <h3>Allow it, once</h3>
               <p>
@@ -293,11 +454,11 @@
                 add Wick's one-line rule. You won't be asked again. Linux skips this step.
               </p>
             </div>
-            <img class="step-shot" src="./shot-access.webp" alt="The Wick panel asking for a one-time permission, with Not Now and Allow buttons." width="680" height="880" loading="lazy" />
+            <img class="step-shot" src="./shot-access.webp" alt="The Wick panel asking for a one-time permission, with Not Now and Allow buttons." width="680" height="882" loading="lazy" />
           </li>
 
-          <li class="step">
-            <span class="step-number" aria-hidden="true">/04</span>
+          <li class="step reveal">
+            <span class="step-number" aria-hidden="true">04</span>
             <div class="step-body">
               <h3>Close the lid</h3>
               <p>That's it. Open it again whenever you like. The panel tells you how long is left, or why Wick stopped.</p>
@@ -311,19 +472,23 @@
         </ol>
 
         <div class="reference">
-          <div class="commands">
+          <div class="commands reveal">
             <h3>From the terminal</h3>
             <dl>
               <div><dt><code>wick on 2h</code></dt><dd>Stay awake for two hours.</dd></div>
               <div><dt><code>wick on --agents</code></dt><dd>Stay awake until your agents finish.</dd></div>
               <div><dt><code>wick run claude</code></dt><dd>Stay awake while one command runs.</dd></div>
               <div><dt><code>wick off</code></dt><dd>Back to normal, right now.</dd></div>
-              <div><dt><code>wick status</code></dt><dd>See what's going on.</dd></div>
+              <div><dt><code>wick status</code></dt><dd>See what's going on, heat included.</dd></div>
             </dl>
           </div>
 
-          <div class="faq">
+          <div class="faq reveal">
             <h3>Questions</h3>
+            <details>
+              <summary>Will it overheat with the lid closed?</summary>
+              <p>On a desk, rarely. In a bag, yes, and fast. Wick ends the session once the laptop has run hot with the lid closed for a minute, and at once if it turns critical. Keep it out of bags anyway.</p>
+            </details>
             <details>
               <summary>Why not just use caffeinate?</summary>
               <p><code>caffeinate</code> stops idle sleep, but closing the lid still puts the Mac to sleep. Only the <code>disablesleep</code> setting survives that, and it needs root.</p>
@@ -351,14 +516,22 @@
 
     <footer class="footer" data-tone="night">
       <div class="footer-row">
-        <p>Free and open source, under the MIT License.</p>
+        <p>
+          Free and open source, under the MIT License. The Linux port is by
+          <a href="https://github.com/gust330">gust330</a>.
+        </p>
         <nav aria-label="Footer">
           <a href="https://github.com/s1lvazxy/wick">Source</a>
           <a href="https://github.com/s1lvazxy/wick/releases">Releases</a>
           <a href="https://github.com/s1lvazxy/wick/issues">Report a problem</a>
         </nav>
       </div>
-      <img class="footer-word" src="./wordmark-light.svg" alt="Wick" width="1600" height="288" loading="lazy" />
+      <p class="footer-fine">No cookies, no analytics, nothing to consent to. This page doesn't know you're here.</p>
+      <!-- When the word stands alone, the ember moves to the i. One ember per composition. -->
+      <svg class="footer-word" viewBox="0 -10 912 304" role="img" aria-label="Wick">
+        <path fill="currentColor" d="M8.8 0H55.2L110.4 224.4L165.6 0H209.2L264.8 224.4L319.6 0H366L290.8 284H240L187.2 76.8L134.4 284H84.4ZM396 71.2H438.4V284H396ZM477.2 177.6Q477.2 144.4 489.6 119.2Q502 94 525 80.2Q548 66.4 578.4 66.4Q617.6 66.4 642.8 86.8Q668 107.2 673.2 143.6L629.2 146Q626 125.6 612.4 114.4Q598.8 103.2 578.4 103.2Q551.6 103.2 536.4 122.8Q521.2 142.4 521.2 177.6Q521.2 212.8 536.4 232.4Q551.6 252 578.4 252Q599.2 252 612.6 240.2Q626 228.4 629.2 206L673.2 208.4Q668 245.2 642.6 267Q617.2 288.8 578.4 288.8Q548 288.8 525 275Q502 261.2 489.6 236Q477.2 210.8 477.2 177.6ZM708 0H750.4V176.4L846 71.2H899.6L816.4 160.8L902.8 284H854L788 187.2L750.4 227.2V284H708Z" />
+        <circle class="footer-dot" cx="417.4" cy="19.2" r="25.1" />
+      </svg>
     </footer>
 
     <p class="sr-only" role="status" id="copy-status"></p>

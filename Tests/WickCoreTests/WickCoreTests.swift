@@ -265,3 +265,115 @@ import Testing
         #expect(plist["RunAtLoad"] as? Bool == true)
     }
 }
+
+/// The guard's side of it: one watch, asked again and again as time passes.
+private final class Watching {
+    private var watch = HeatWatch()
+
+    func isOverheating(_ heat: Heat, at uptime: TimeInterval) -> Bool {
+        watch.isOverheating(heat, uptime: uptime)
+    }
+
+    /// Asks every five seconds, as the guard does, and answers with the last reply.
+    func isOverheating(_ heat: Heat, for seconds: TimeInterval, from start: TimeInterval = 0) -> Bool {
+        var answer = false
+        for uptime in stride(from: start, through: start + seconds, by: 5) {
+            answer = isOverheating(heat, at: uptime)
+        }
+        return answer
+    }
+}
+
+@Suite struct `Heat rules` {
+    func heat(_ level: Heat.Level = .nominal, lid isLidClosed: Bool? = true, battery: Double? = 31) -> Heat {
+        Heat(level: level, isLidClosed: isLidClosed, batteryCelsius: battery)
+    }
+
+    @Test func `critical stops at once, lid open or closed`() {
+        for isLidClosed in [true, false, nil] {
+            #expect(Watching().isOverheating(heat(.critical, lid: isLidClosed), at: 0))
+        }
+    }
+
+    @Test func `serious with the lid closed has to last a minute`() {
+        let guarded = Watching()
+        #expect(!guarded.isOverheating(heat(.serious), for: 55))
+        #expect(guarded.isOverheating(heat(.serious), at: 60))
+    }
+
+    @Test func `serious with the lid open never stops it`() {
+        #expect(!Watching().isOverheating(heat(.serious, lid: false), for: 3600))
+    }
+
+    @Test func `not knowing about the lid counts as open`() {
+        #expect(!Watching().isOverheating(heat(.serious, lid: nil, battery: 50), for: 3600))
+    }
+
+    @Test func `a hot battery with the lid closed stops it after a minute`() {
+        let guarded = Watching()
+        #expect(!guarded.isOverheating(heat(battery: 45), for: 55))
+        #expect(guarded.isOverheating(heat(battery: 45), at: 60))
+    }
+
+    @Test func `a battery just under the line is fine`() {
+        #expect(!Watching().isOverheating(heat(.fair, battery: 44.9), for: 3600))
+    }
+
+    @Test func `a cool sample starts the minute again`() {
+        let guarded = Watching()
+        #expect(!guarded.isOverheating(heat(.serious), for: 55))
+        #expect(!guarded.isOverheating(heat(.fair), at: 60))
+        #expect(!guarded.isOverheating(heat(.serious), for: 55, from: 65))
+        #expect(guarded.isOverheating(heat(.serious), at: 125))
+    }
+
+    @Test func `opening the lid starts the minute again`() {
+        let guarded = Watching()
+        #expect(!guarded.isOverheating(heat(.serious), for: 55))
+        #expect(!guarded.isOverheating(heat(.serious, lid: false), at: 60))
+        #expect(!guarded.isOverheating(heat(.serious), at: 65))
+    }
+
+    @Test func `being asked often doesn't make it trigger sooner`() {
+        let guarded = Watching()
+        for tenth in 0..<590 {
+            #expect(!guarded.isOverheating(heat(.serious), at: Double(tenth) / 10))
+        }
+    }
+
+    @Test(arguments: [0, -273.15, 0.5, 100.5, 6280, .infinity, .nan])
+    func `battery readings that can't be real are ignored`(celsius: Double) {
+        #expect(heat(battery: celsius).batteryCelsius == nil)
+        #expect(!Watching().isOverheating(heat(battery: celsius), for: 3600))
+    }
+
+    @Test func `sums up as a word`() {
+        #expect(heat().word == "Cool")
+        #expect(heat(.fair).word == "Warm")
+        #expect(heat(battery: 40).word == "Warm")
+        #expect(heat(.serious).word == "Hot")
+        #expect(heat(battery: 45).word == "Hot")
+        #expect(heat(.critical, battery: nil).word == "Hot")
+    }
+
+    @Test func `the simulation file takes words in any order`() {
+        #expect(Heat.parse("serious closed 46\n") == heat(.serious, lid: true, battery: 46))
+        #expect(Heat.parse("44.5 open") == heat(.nominal, lid: false, battery: 44.5))
+        #expect(Heat.parse("") == heat(.nominal, lid: nil, battery: nil))
+        #expect(Heat.parse("critical") == heat(.critical, lid: nil, battery: nil))
+    }
+
+    @Test func `status prints unknowns as null rather than leaving them out`() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let unknown = try encoder.encode(heat(.fair, lid: nil, battery: nil))
+        #expect(String(decoding: unknown, as: UTF8.self) == #"{"batteryCelsius":null,"level":"fair","lidClosed":null,"word":"Warm"}"#)
+        let known = try encoder.encode(heat(.nominal, lid: true, battery: 31))
+        #expect(String(decoding: known, as: UTF8.self) == #"{"batteryCelsius":31,"level":"nominal","lidClosed":true,"word":"Cool"}"#)
+    }
+
+    @Test func `levels are in order`() {
+        #expect(Heat.Level.allCases == Heat.Level.allCases.sorted())
+        #expect(Heat.Level.serious < .critical)
+    }
+}

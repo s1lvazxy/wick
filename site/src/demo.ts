@@ -1,3 +1,5 @@
+import * as session from "./session";
+
 // A working copy of the app's panel, in the browser. The ruler uses the same values as RulerNSView in the app:
 // 7 points per 5 minutes, a critically damped spring, Apple's momentum projection, and resistance past each end.
 
@@ -11,15 +13,6 @@ const OMEGA = (2 * Math.PI) / 0.32;
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high);
 const snap = (value: number) => clamp(Math.round(value / STEP) * STEP, MIN, MAX);
-
-function clock(totalSeconds: number) {
-  const seconds = Math.max(0, Math.ceil(totalSeconds));
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-}
 
 function hoursAndMinutes(minutes: number) {
   return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
@@ -118,7 +111,7 @@ export function mountDemo() {
 
   function updateText() {
     if (endsAt !== null && !isDragging && !ownsMotion) {
-      time!.textContent = clock((endsAt - Date.now()) / 1000);
+      time!.textContent = session.clock(endsAt - Date.now());
     } else if (endsAt !== null) {
       time!.textContent = hoursAndMinutes(shownMinutes());
     } else {
@@ -138,7 +131,7 @@ export function mountDemo() {
 
   function commit(minutes: number) {
     selected = minutes;
-    if (endsAt !== null) endsAt = Date.now() + minutes * 60_000;
+    session.setMinutes(minutes);
     updatePresets();
   }
 
@@ -252,35 +245,37 @@ export function mountDemo() {
     toggle.setAttribute("aria-checked", String(toggle.getAttribute("aria-checked") !== "true"));
   });
 
-  function setAwake(isAwake: boolean) {
+  // The session belongs to the whole page: the heat demo can end it, and the nav shows it.
+  let wasAwake = false;
+
+  session.subscribe((state) => {
     clearInterval(countdown);
-    endsAt = isAwake ? Date.now() + selected * 60_000 : null;
-    panel!.dataset.awake = String(isAwake);
-    play!.setAttribute("aria-label", isAwake ? "Stop" : "Keep awake");
-    status!.textContent = isAwake ? "Awake with the lid closed" : "Sleeps when the lid closes";
-    if (isAwake) {
+    endsAt = state.endsAt;
+    selected = state.minutes;
+    panel!.dataset.awake = String(state.isAwake);
+    play!.setAttribute("aria-label", state.isAwake ? "Stop" : "Keep awake");
+    status!.textContent = state.isAwake ? "Awake with the lid closed" : session.SENTENCES[state.reason ?? "user"];
+    if (state.isAwake) {
       countdown = window.setInterval(() => {
-        if (endsAt === null) return;
-        const remaining = endsAt - Date.now();
-        if (remaining <= 0) {
-          setAwake(false);
-          return;
-        }
-        if (!isDragging && !ownsMotion) {
-          value = target = remaining / 60_000;
-          draw();
-          updateText();
-        }
+        if (endsAt === null || isDragging || ownsMotion) return;
+        value = target = Math.max(0, endsAt - Date.now()) / 60_000;
+        draw();
+        updateText();
       }, 1000);
-    } else {
-      value = target = snap(value);
+      if (!isDragging && !ownsMotion) value = target = state.minutes;
+    } else if (wasAwake) {
+      value = target = snap(state.minutes);
     }
+    wasAwake = state.isAwake;
     updatePresets();
     draw();
     updateText();
-  }
+  });
 
-  play.addEventListener("click", () => setAwake(endsAt === null));
+  play.addEventListener("click", () => {
+    if (session.get().isAwake) session.stop("user");
+    else session.start(selected);
+  });
 
   new ResizeObserver(([entry]) => {
     width = entry.contentRect.width;

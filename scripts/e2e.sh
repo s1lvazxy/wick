@@ -166,6 +166,32 @@ echo 1 > "$WICK_SIMULATE_POWER_FILE"
 expect "leaves a setting Wick did not turn on" 1 "$(power)"
 echo 0 > "$WICK_SIMULATE_POWER_FILE"
 
+echo "heat"
+export WICK_SIMULATE_HEAT_FILE="$work/heat"
+echo "fair open 38" > "$WICK_SIMULATE_HEAT_FILE"
+"$wick" on 30m >/dev/null
+expect "status says how hot it is" "Heat: warm, battery 38°C, lid open." "$("$wick" status | tail -1)"
+echo "critical open" > "$WICK_SIMULATE_HEAT_FILE"
+wait_for 0 8; expect "a critical Mac stops at once, even with the lid open" 0 "$(power)"
+expect "records why" overheating "$(last_reason)"
+sleep 0.2; pkill -f "$wick guard"; sleep 0.2
+
+echo "serious open 46" > "$WICK_SIMULATE_HEAT_FILE"
+"$wick" on 30m >/dev/null
+sleep 8
+echo "serious closed 46" > "$WICK_SIMULATE_HEAT_FILE"
+started=$(date +%s)
+case "$("$wick" status | tail -1)" in *"Wick stops if this lasts a minute."*) got=yes ;; *) got=no ;; esac
+expect "status warns once the lid closes on a hot Mac" yes "$got"
+sleep 45
+expect "a hot Mac with the lid closed gets most of a minute" 1 "$(power)"
+wait_for 0 30; expect "and is stopped once it has lasted one" 0 "$(power)"
+lasted=$(($(date +%s) - started))
+expect "not before the minute was up" yes "$([ "$lasted" -ge 55 ] && echo yes || echo "no, after ${lasted}s")"
+expect "records why" overheating "$(last_reason)"
+unset WICK_SIMULATE_HEAT_FILE
+sleep 0.2; pkill -f "$wick guard"; sleep 0.2
+
 echo "errors"
 "$wick" on soon >/dev/null 2>&1
 expect "bad duration fails" 1 "$?"

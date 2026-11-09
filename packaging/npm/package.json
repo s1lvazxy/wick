@@ -1,6 +1,6 @@
 {
   "name": "wick-mac",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Installs Wick, which keeps a Mac awake with the lid closed. Run: npx wick-mac",
   "license": "MIT",
   "repository": "github:s1lvazxy/wick",

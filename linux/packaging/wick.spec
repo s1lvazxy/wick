@@ -1,5 +1,5 @@
 Name:           wick
-Version:        0.2.0
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Keeps a Linux laptop awake with the lid closed
 
@@ -42,5 +42,8 @@ temperature, when agents finish, or if its own process dies.
 %{_bindir}/wick
 
 %changelog
+* Mon Nov 09 2026 s1lvazxy - 0.3.0-1
+- Stop for heat sooner when the lid is closed, and show the heat in status, doctor and the panels
+
 * Mon Nov 02 2026 s1lvazxy - 0.2.0-1
 - First official Linux release, based on the port by gust330

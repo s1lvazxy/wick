@@ -60,7 +60,7 @@ const END_SENTENCES = {
     agentsFinished: 'Agents finished. Sleep is back to normal.',
     commandFinished: 'Command finished. Sleep is back to normal.',
     lowBattery: 'Stopped to protect the battery.',
-    overheating: 'Stopped because the laptop was overheating.',
+    overheating: 'Stopped to let the laptop cool down.',
     stoppedExternally: 'The lid lock ended outside Wick.',
 };
 
@@ -185,6 +185,16 @@ class WickIndicator extends PanelMenu.Button {
         batteryWords.add_child(this._batteryDetail);
         this._batteryRow.add_child(batteryWords);
         card.add_child(this._batteryRow);
+
+        // The one condition with nothing to switch: it's there to say so.
+        this._heatRow = new St.BoxLayout({style_class: 'wick-row', visible: false});
+        const heatWords = column({x_expand: true});
+        heatWords.add_child(new St.Label({text: 'Stops if it gets hot', style_class: 'wick-row-title'}));
+        this._heatDetail = new St.Label({style_class: 'wick-row-detail'});
+        heatWords.add_child(this._heatDetail);
+        this._heatRow.add_child(heatWords);
+        this._heatRow.add_child(new St.Label({text: 'Always', style_class: 'wick-row-detail', y_align: Clutter.ActorAlign.CENTER}));
+        card.add_child(this._heatRow);
         this._panel.add_child(card);
     }
 
@@ -428,6 +438,14 @@ class WickIndicator extends PanelMenu.Button {
             const state = battery.isDischarging ? 'on battery' : 'plugged in';
             const floor = session ? session.batteryFloor : 20;
             this._batteryDetail.text = floor ? `${battery.percent}%, ${state}. Stops at ${floor}%` : `${battery.percent}%, ${state}`;
+        }
+
+        // An older `wick` on the PATH doesn't report heat, and a row with nothing to say is worse than no row.
+        const heat = this._state?.heat;
+        this._heatRow.visible = Boolean(heat);
+        if (heat) {
+            const known = typeof heat.batteryCelsius === 'number';
+            this._heatDetail.text = known ? `${heat.word}, battery ${Math.round(heat.batteryCelsius)}°C` : heat.word;
         }
     }
 

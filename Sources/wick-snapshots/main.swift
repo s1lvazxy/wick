@@ -33,6 +33,15 @@ let scenes: [(name: String, model: WickModel)] = [
     ("ended-battery", .preview(
         lastEnd: SessionEnd(reason: .lowBattery)
     )),
+    ("awake-warm", .preview(
+        phase: .awake(Session(endsAt: inTwoHours)),
+        battery: Battery(percent: 71, isDischarging: false),
+        heat: Heat(level: .fair, isLidClosed: false, batteryCelsius: 38)
+    )),
+    ("ended-heat", .preview(
+        heat: Heat(level: .serious, isLidClosed: false, batteryCelsius: 46),
+        lastEnd: SessionEnd(reason: .overheating)
+    )),
     ("problem", .preview(problem: "Couldn't turn sleep off. Something went wrong in pmset.")),
     ("desktop-mac", .preview(battery: nil)),
     ("worst-case", .preview(

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wick-linux"
-version = "0.2.0"
+version = "0.3.0"
 description = "Close the lid. Keep working. Keeps a Linux laptop awake with the lid closed, for coding agents and long builds."
 readme = "README.md"
 authors = [{ name = "s1lvazxy" }, { name = "gust330" }]

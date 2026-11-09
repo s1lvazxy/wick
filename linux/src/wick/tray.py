@@ -17,7 +17,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
-from wick import agents, battery, core, durations, power  # noqa: E402
+from wick import agents, battery, core, durations, power, thermal  # noqa: E402
 from wick.session import EndReason, Session, SessionStore, parse_iso  # noqa: E402
 
 ASSETS = Path(__file__).resolve().parent / "assets"
@@ -321,6 +321,17 @@ class Panel(Gtk.Window):
         self.floor_button.connect("clicked", lambda *_: self._cycle_floor())
         self.battery_row.pack_end(self.floor_button, False, False, 0)
         card.pack_start(self.battery_row, False, False, 0)
+
+        self.battery_separator = Gtk.Box()
+        self.battery_separator.get_style_context().add_class("wick-separator")
+        card.pack_start(self.battery_separator, False, False, 0)
+
+        # The one condition with nothing to switch: it's there to say so.
+        self.heat_detail, heat_row = self._row("Stops if it gets hot")
+        always = Gtk.Label(label="Always", valign=Gtk.Align.CENTER)
+        always.get_style_context().add_class("wick-row-detail")
+        heat_row.pack_end(always, False, False, 0)
+        card.pack_start(heat_row, False, False, 0)
         self.root.pack_start(card, False, False, 0)
 
         quit_button = Gtk.Button(label="Quit Wick")
@@ -492,8 +503,11 @@ class Panel(Gtk.Window):
 
         current = battery.Battery.current()
         self.battery_row.set_visible(current is not None)
+        self.battery_separator.set_visible(current is not None)
         if current:
             self.battery_detail.set_text(f"{current.percent}%, {'on battery' if current.is_discharging else 'plugged in'}")
+
+        self.heat_detail.set_text(thermal.Heat.current(always_ask_lid=False).summary)
 
 
 def _hours_and_minutes(minutes: float) -> str:

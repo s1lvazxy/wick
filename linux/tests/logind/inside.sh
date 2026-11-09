@@ -16,7 +16,7 @@ rm -rf /home/dev/src; cp -r /src /home/dev/src; chown -R dev: /home/dev/src
 as_dev "python3 -m venv ~/venv && ~/venv/bin/pip -q install ~/src >/dev/null 2>&1"
 W=/home/dev/venv/bin/wick
 STATE=/home/dev/.local/state/wick
-expect "pip installs a working wick" "wick 0.2.0" "$(as_dev "$W --version")"
+expect "pip installs a working wick" "wick 0.3.0" "$(as_dev "$W --version")"
 expect "with no D-Bus bindings to lean on" 0 "$(as_dev "~/venv/bin/python -c 'import importlib.util as u; print(0 if u.find_spec(\"dbus\") is None else 1)'")"
 expect "and the extension and icons in the package" 4 "$(find /home/dev/venv/lib -path '*wick/assets*' \( -name 'wick-*.svg' \) | wc -l)"
 
@@ -356,6 +356,27 @@ else
         log=$(journal "$since")
         case "$log" in *inhibited*) got=inhibited ;; *) got=acted ;; esac
         expect "after wick off, closing the lid works normally again" acted "$got"
+        echo open > "$control"; sleep 1
+
+        # Heat with the lid closed, with logind itself saying where the lid is.
+        clean
+        hot=/home/dev/hot-sys/class/power_supply/BAT0
+        as_dev "mkdir -p $hot; echo Battery > $hot/type; echo Charging > $hot/status; echo 80 > $hot/capacity; echo 460 > $hot/temp"
+        as_dev "WICK_SYSFS_ROOT=/home/dev/hot-sys $W on 1h" >/dev/null
+        sleep 7
+        expect "a hot battery with the lid open is left alone" 1 "$(locks)"
+        # The last line, because the first says "Awake with the lid closed" whatever the lid is doing.
+        heat=$(as_dev "WICK_SYSFS_ROOT=/home/dev/hot-sys $W status" | tail -1)
+        contains "status says how hot it is" "Heat: hot, battery 46°C" "$heat"
+        case "$heat" in *"lid closed"*) got=closed ;; *) got="not closed" ;; esac
+        expect "and doesn't call the lid closed" "not closed" "$got"
+        echo close > "$control"; sleep 2
+        contains "wick asks logind, and sees the lid close" "battery 46°C, lid closed. Wick stops if this lasts a minute." "$(as_dev "WICK_SYSFS_ROOT=/home/dev/hot-sys $W status")"
+        contains "so does wick doctor" "Lid           closed" "$(as_dev "WICK_SYSFS_ROOT=/home/dev/hot-sys $W doctor")"
+        sleep 38
+        expect "it gets most of a minute" 1 "$(locks)"
+        wait_locks 0 40; expect "and is released once it has lasted one" 0 "$(locks)"
+        expect "recorded" overheating "$(reason)"
         echo open > "$control"; sleep 1
     fi
 fi

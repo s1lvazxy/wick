@@ -85,6 +85,33 @@ def _inhibitors() -> list[tuple[str, str, str, int, int]] | None:
         return None
 
 
+def lid_closed() -> bool | None:
+    """Whether logind sees the lid as shut, or None if it can't be asked. It says no on a machine with no lid."""
+    busctl = shutil.which("busctl")
+    if busctl is None:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                busctl,
+                "get-property",
+                "org.freedesktop.login1",
+                "/org/freedesktop/login1",
+                "org.freedesktop.login1.Manager",
+                "LidClosed",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    answer = result.stdout.split()
+    if result.returncode != 0 or len(answer) != 2 or answer[0] != "b" or answer[1] not in ("true", "false"):
+        return None
+    return answer[1] == "true"
+
+
 def logind_available() -> bool:
     return simulated_file() is not None or (shutil.which("systemd-inhibit") is not None and _inhibitors() is not None)
 
