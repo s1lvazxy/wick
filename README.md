@@ -17,7 +17,7 @@
 <p align="center">
   <a href="https://github.com/s1lvazxy/wick/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/s1lvazxy/wick?label=release&labelColor=141211&color=F5F2EE"></a>
   <a href="https://github.com/s1lvazxy/wick/actions/workflows/ci.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/s1lvazxy/wick/ci.yml?branch=main&label=tests&labelColor=141211&color=F5F2EE"></a>
-  <img alt="macOS 14 or later, and Linux" src="https://img.shields.io/badge/macOS%2014%2B%20%C2%B7%20Linux-F5F2EE?labelColor=141211">
+  <img alt="Runs on macOS 14 or later, and Linux" src="https://img.shields.io/badge/runs%20on-macOS%2014%2B%20%C2%B7%20Linux-F5F2EE?labelColor=141211">
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-F5F2EE?labelColor=141211"></a>
 </p>
 
@@ -50,11 +50,11 @@ Needs macOS 14 or later. Runs on Apple silicon and Intel.
 ### Linux
 
 ```sh
-pipx install "git+https://github.com/s1lvazxy/wick#subdirectory=linux"
+pipx install "git+https://github.com/s1lvazxy/wick@v0.3.0#subdirectory=linux"
 wick setup
 ```
 
-`wick setup` checks that the lock is allowed, adds the app launcher and, on GNOME, adds the top bar extension. On GNOME, log out and back in once so it can load, unless setup says it's already enabled.
+`wick setup` checks that the lock is allowed, adds the app launcher and, on GNOME, adds the top bar extension. On GNOME, log out and back in once so it can load, unless setup says it's already enabled. There's also an RPM on the [releases page](https://github.com/s1lvazxy/wick/releases/latest).
 
 Needs systemd-logind and Python 3.9 or later, so it works on Fedora, Ubuntu, Debian, Arch and most others. It doesn't work on distributions without systemd, like Alpine or Void. `wick doctor` tells you where your machine stands.
 
@@ -121,12 +121,16 @@ Nothing to install and no root. Wick holds a `handle-lid-switch:sleep:idle` inhi
 
 logind only hands out this lock to an active local session, so `wick on` fails over SSH, from cron or from a system service, and says so rather than pretending. `wick doctor` prints the polkit rule that widens it, if you want that.
 
+## Why not caffeinate?
+
+`caffeinate` stops idle sleep, but closing the lid still puts the Mac to sleep. Only `disablesleep` survives that. On Linux, the equivalent trap is a `sleep` inhibitor, which logind ignores for the lid by default. It takes `handle-lid-switch`.
+
 ## How it's built
 
 The macOS app is Swift 6, SwiftUI and AppKit, with no dependencies, at 5 MB. The Linux side is Python with no dependencies beyond systemd, in [linux/](linux). Both use the same session model and rules. Neither makes a network request.
 
 ```
-Sources/WickCore        the setting, sessions, the guard, agent detection, the sudoers rule
+Sources/WickCore        the setting, sessions, the guard, heat, agent detection, the sudoers rule
 Sources/wick            the CLI, which is also the guard process
 Sources/WickUI          the panel, the ruler, the menu bar item
 Sources/WickApp         the app's entry point
@@ -138,6 +142,9 @@ packaging/              the Homebrew cask and the npm installer
 ```
 
 The session file in `~/Library/Application Support/Wick` is the single source of truth. The app and the CLI write it, and the guard enforces it.
+
+<details>
+<summary><b>Building and testing</b></summary>
 
 ```sh
 swift test             # unit tests
@@ -152,13 +159,14 @@ tests/gnome/run.sh                   # loads the extension in real GNOME Shell r
 preview/run.sh                       # a real GNOME desktop with Wick in it, in your browser. Needs Docker
 ```
 
-### Releasing
+</details>
+
+<details>
+<summary><b>Releasing</b></summary>
 
 Run `linux/tests/logind/run.sh fedora:42 fedora:latest ubuntu:22.04 ubuntu:24.04 debian:12 debian:13` and `linux/tests/gnome/run.sh` first, because CI can't: they need a privileged container with systemd as PID 1. Then push a tag like `v0.3.0`. [`release.yml`](.github/workflows/release.yml) builds, publishes to GitHub Releases, updates the tap and publishes to npm. Its header lists the secrets, all optional. With a Developer ID it also signs and notarises, after which the cask's quarantine step can go and Wick can apply to the official Homebrew cask list.
 
-## Why not caffeinate?
-
-`caffeinate` stops idle sleep, but closing the lid still puts the Mac to sleep. Only `disablesleep` survives that. On Linux, the equivalent trap is a `sleep` inhibitor, which logind ignores for the lid by default. It takes `handle-lid-switch`.
+</details>
 
 ## Credits
 
